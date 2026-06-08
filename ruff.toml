@@ -1,0 +1,124 @@
+line-length = 120
+target-version = "py314"
+
+[lint]
+select = [
+    # https://docs.astral.sh/ruff/rules/#pyflakes-f
+    "F",
+    # https://docs.astral.sh/ruff/rules/#pycodestyle-e-w
+    "E",
+    "W",
+    # https://docs.astral.sh/ruff/rules/#isort-i
+    "I",
+    # https://docs.astral.sh/ruff/rules/#pep8-naming-n
+    "N",
+    # https://docs.astral.sh/ruff/rules/#pyupgrade-up
+    "UP",
+    # https://docs.astral.sh/ruff/rules/#flake8-bugbear-b
+    "B",
+    # https://docs.astral.sh/ruff/rules/#flake8-comprehensions-c4
+    "C4",
+    # https://docs.astral.sh/ruff/rules/#flake8-debugger-t10
+    "T10",
+    # https://docs.astral.sh/ruff/rules/#flake8-pie-pie
+    "PIE",
+    # https://docs.astral.sh/ruff/rules/#flake8-pytest-style-pt
+    "PT",
+    # https://docs.astral.sh/ruff/rules/#flake8-return-ret
+    "RET",
+    # https://docs.astral.sh/ruff/rules/#flake8-simplify-sim
+    "SIM",
+    # https://docs.astral.sh/ruff/rules/#pydocstyle-d
+    "D201", "D202", "D204", "D206", "D207", "D208", "D209", "D210", "D211", "D213", "D214", "D215", "D300", "D403",
+    "D419",
+    # https://docs.astral.sh/ruff/rules/#flake8-implicit-str-concat-isc
+    "ISC",
+    # https://docs.astral.sh/ruff/rules/#flake8-import-conventions-icn
+    "ICN",
+    # https://docs.astral.sh/ruff/rules/#flake8-tidy-imports-tid
+    "TID",
+    # https://docs.astral.sh/ruff/rules/#ruff-specific-rules-ruf
+    "RUF001", "RUF002", "RUF003", "RUF005", "RUF006", "RUF007", "RUF008", "RUF009", "RUF010", "RUF013", "RUF015",
+    "RUF016", "RUF017", "RUF018", "RUF019", "RUF020", "RUF021", "RUF022", "RUF023", "RUF024", "RUF026", "RUF028",
+    "RUF030", "RUF032", "RUF033", "RUF034", "RUF040", "RUF041", "RUF046", "RUF049", "RUF051", "RUF053", "RUF057",
+    "RUF058", "RUF100", "RUF101", "RUF200",
+    # https://docs.astral.sh/ruff/rules/#perflint-perf
+    "PERF",
+    # https://docs.astral.sh/ruff/rules/#refurb-furb
+    "FURB",
+    # https://docs.astral.sh/ruff/rules/#flynt-fly
+    "FLY",
+    # https://docs.astral.sh/ruff/rules/#convention-c
+    "PLC",
+    # https://docs.astral.sh/ruff/rules/#flake8-builtins-a
+    "A",
+    # https://docs.astral.sh/ruff/rules/#flake8-pyi-pyi
+    "PYI",
+    # https://docs.astral.sh/ruff/rules/#flake8-type-checking-tc
+    "TC005", "TC006", "TC007", "TC010",
+    # https://docs.astral.sh/ruff/rules/os-path-abspath/
+    "PTH",
+    # https://docs.astral.sh/ruff/rules/#flake8-logging-format-g
+    "G",
+    # https://docs.astral.sh/ruff/rules/#flake8-bandit-s
+    "S",
+    # https://docs.astral.sh/ruff/rules/#flake8-django-dj
+    "DJ",
+    # https://docs.astral.sh/ruff/rules/#flake8-errmsg-em
+    "EM",
+    # https://docs.astral.sh/ruff/rules/#flake8-future-annotations-fa
+    "FA",
+    # https://docs.astral.sh/ruff/rules/#flake8-logging-log
+    "LOG",
+    # https://docs.astral.sh/ruff/rules/#flake8-quotes-q
+    "Q",
+    # https://docs.astral.sh/ruff/rules/#flake8-raise-rse
+    "RSE",
+    # https://docs.astral.sh/ruff/rules/#flake8-no-pep420-inp
+    "INP",
+]
+
+# Never enforce...
+ignore = [
+    "E501", # line length violations
+    "SIM108", # use-ternary-operator
+    "RET505", # superfluous-else-return
+    "RET506", # superfluous-else-raise
+    "RET507", # superfluous-else-continue
+    "RET508", # superfluous-else-break
+    "B027", # empty-method-without-abstract-decorator
+    "A005", # module `name` shadows Python-standard library
+    "ISC001", # The following rules may cause conflicts when used with the formatter
+    "S101",  # assert
+    "S311",  # pseudo-random
+    "S608",  # Possible SQL injection vector through string-based query construction
+    "S308",  # mark_safe
+    "S105", "S106", # Possible hardcoded password assigned to
+    "S108",  # Probable insecure usage of temporary file or directory
+    "S603", "S607",  # subprocess stuff
+    "DJ006",  # Do not use `exclude` with `ModelForm`, use `fields` instead
+    "DJ007",  # Do not use `__all__` with `ModelForm`, use `fields` instead
+    "DJ008",  # Model does not define `__str__` method
+    "PERF401",  # Use a list comprehension to create a transformed list
+]
+
+allowed-confusables = ["×"]
+
+[lint.per-file-ignores]
+# Never enforce F401 (unused-import) in __init__ files
+"__init__.py" = ["F401"]
+# Deferred imports inside AppConfig.ready()/contenttypes setup are required to
+# avoid AppRegistryNotReady and optional-app import errors.
+"eagle/apps.py" = ["PLC0415"]
+"eagle/instrumentation/descriptors.py" = ["PLC0415"]
+# unittest.TestCase suite: keep self.assert* (PT009/PT027), local test exception
+# classes (N818), and an intentionally-lowercase asserted docstring (D403).
+"tests/**" = ["RUF018", "FLY", "PYI024", "SLF001", "PT009", "PT027", "N818", "D403"]
+
+[lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[lint.flake8-pytest-style]
+fixture-parentheses = false
+mark-parentheses = false
+parametrize-names-type = "list"

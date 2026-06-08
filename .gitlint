@@ -1,0 +1,16 @@
+[general]
+ignore = body-is-missing,title-must-not-contain-word
+regex-style-search = True
+contrib = commit-capitalize,commit-tense
+
+[title-max-length]
+line-length=80
+
+[title-min-length]
+min-length=5
+
+[body-min-length]
+min-length=10
+
+[author-valid-email]
+regex=[^@]+@xelix.com
