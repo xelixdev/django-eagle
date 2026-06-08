@@ -2,8 +2,8 @@ from collections.abc import Iterable
 
 from django.db.models import Model
 
-from eagle.unused.state import LoadedRelation, collector
 from eagle.logger import logger
+from eagle.unused.state import LoadedRelation, collector
 
 
 def _record_loaded(model_name: str, cache_name: str, kind: str, location: str | None) -> None:
@@ -59,7 +59,7 @@ def mark_select_related(instance: Model, cache_name: str) -> None:
         logger.debug(
             "Tried marking select_related %s, %s... but collector is not active.",
             instance.__class__.__name__,
-            cache_name
+            cache_name,
         )
         return
 
@@ -74,10 +74,7 @@ def mark_select_related(instance: Model, cache_name: str) -> None:
 
 def mark_prefetched(instances: Iterable[Model], cache_name: str | None) -> None:
     if cache_name is None or not collector.active:
-        logger.debug(
-            "Tried marking prefetch_related %s... but collector is not active.",
-            cache_name or ""
-        )
+        logger.debug("Tried marking prefetch_related %s... but collector is not active.", cache_name or "")
         return
 
     for instance in instances:

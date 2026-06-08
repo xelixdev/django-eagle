@@ -5,9 +5,8 @@ from typing import ParamSpec, TypeVar
 
 from django.db.models import Model
 
-from eagle.unused import mark_considered_internal
 from eagle.logger import logger
-
+from eagle.unused import mark_considered_internal
 
 P = ParamSpec("P")
 R = TypeVar("R")
