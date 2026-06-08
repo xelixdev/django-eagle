@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/eagle.svg" alt="django-eagle" width="480">
+</p>
+
 # django-eagle
 
 [![CI](https://github.com/xelixdev/django-eagle/actions/workflows/ci.yml/badge.svg)](https://github.com/xelixdev/django-eagle/actions/workflows/ci.yml)

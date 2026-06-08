@@ -1,0 +1,63 @@
+<svg width="640" height="220" viewBox="0 0 640 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="django-eagle">
+  <title>django-eagle</title>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0b1f2a"/>
+      <stop offset="1" stop-color="#123040"/>
+    </linearGradient>
+    <linearGradient id="body" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5a3b21"/>
+      <stop offset="1" stop-color="#3a2614"/>
+    </linearGradient>
+    <linearGradient id="wing" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6b4626"/>
+      <stop offset="1" stop-color="#2c1d10"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="640" height="220" rx="14" fill="url(#sky)"/>
+
+  <!-- subtle perched branch -->
+  <path d="M120 188 H520" stroke="#1c2a30" stroke-width="6" stroke-linecap="round" opacity="0.6"/>
+
+  <!-- left wing -->
+  <path d="M318 120
+           C 250 70, 170 60, 120 92
+           C 175 92, 215 104, 250 124
+           C 200 116, 158 122, 128 142
+           C 185 138, 232 142, 280 150 Z"
+        fill="url(#wing)"/>
+
+  <!-- right wing -->
+  <path d="M322 120
+           C 390 70, 470 60, 520 92
+           C 465 92, 425 104, 390 124
+           C 440 116, 482 122, 512 142
+           C 455 138, 408 142, 360 150 Z"
+        fill="url(#wing)"/>
+
+  <!-- body -->
+  <path d="M320 108
+           C 300 118, 296 150, 308 178
+           C 314 190, 326 190, 332 178
+           C 344 150, 340 118, 320 108 Z"
+        fill="url(#body)"/>
+
+  <!-- tail -->
+  <path d="M308 176 L320 206 L332 176 Z" fill="#e9eef0"/>
+
+  <!-- head -->
+  <circle cx="320" cy="96" r="26" fill="#f3f6f7"/>
+  <path d="M300 92 C 306 78, 334 78, 340 92 C 332 86, 308 86, 300 92 Z" fill="#dde6e8"/>
+
+  <!-- eye -->
+  <circle cx="330" cy="92" r="3.4" fill="#15242b"/>
+
+  <!-- beak -->
+  <path d="M344 94 C 360 94, 364 104, 350 110 C 348 104, 346 100, 344 100 Z" fill="#f2b134"/>
+
+  <!-- wordmark -->
+  <text x="320" y="210" text-anchor="middle"
+        font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+        font-size="16" fill="#9fb4bd" letter-spacing="2">django-eagle</text>
+</svg>
