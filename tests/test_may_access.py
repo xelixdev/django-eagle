@@ -6,9 +6,9 @@ import eagle
 from eagle import mark_considered, may_access
 from test_project.models import Eagle
 from tests.base import (
+    BaseRequestTest,
     InactiveCollectorTestBase,
     MayAccessHelperTestBase,
-    BaseRequestTest,
 )
 
 

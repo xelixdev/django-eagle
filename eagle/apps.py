@@ -1,4 +1,5 @@
 from django.apps import AppConfig, apps
+
 from eagle.logger import logger
 
 

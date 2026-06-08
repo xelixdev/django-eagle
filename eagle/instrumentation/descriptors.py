@@ -56,7 +56,8 @@ class PrefetchCacheDescriptor:
         try:
             return instance.__dict__[self._eagle_storage]
         except KeyError:
-            raise AttributeError("_prefetched_objects_cache") from None
+            e = "_prefetched_objects_cache"
+            raise AttributeError(e) from None
 
     def __set__(self, instance: Model, value: Any) -> None:
         if not isinstance(value, TrackingPrefetchCache):
@@ -67,7 +68,8 @@ class PrefetchCacheDescriptor:
         try:
             del instance.__dict__[self._eagle_storage]
         except KeyError:
-            raise AttributeError("_prefetched_objects_cache") from None
+            e = "_prefetched_objects_cache"
+            raise AttributeError(e) from None
 
 
 def create_eager_related_manager(related_manager_cls: type[Manager]) -> type[Manager]:

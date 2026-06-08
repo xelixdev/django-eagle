@@ -86,4 +86,4 @@ class InactiveCollectorTestBase:
     def inactive_collector(self):
         if unused.is_active():
             unused.end_request()
-        yield
+        return
