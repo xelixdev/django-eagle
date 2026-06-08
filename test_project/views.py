@@ -6,7 +6,6 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from eagle import mark_considered, may_access
-
 from test_project.models import Eagle
 from test_project.serializers import EagleSerializer
 
@@ -39,9 +38,7 @@ class EagleView(APIView):
 
         eagle = queryset.get(pk=pk)
 
-        data = EagleSerializer(
-            eagle, context={"access": _csv(params.get("access")), "to_attr": to_attr_name}
-        ).data
+        data = EagleSerializer(eagle, context={"access": _csv(params.get("access")), "to_attr": to_attr_name}).data
 
         if considered and params.get("mark_before") != "1":
             mark_considered(Eagle, *considered)

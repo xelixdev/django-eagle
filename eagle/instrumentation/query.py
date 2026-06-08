@@ -146,7 +146,7 @@ class TrackedPrefetchList(list):
         self._eagle_consume()
         return super().__reversed__()
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         self._eagle_consume()
         return super().__eq__(other)
 

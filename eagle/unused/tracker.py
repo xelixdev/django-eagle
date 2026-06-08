@@ -1,7 +1,7 @@
 import warnings
 
-from eagle.logger import logger
 from eagle.exceptions import UnusedRelatedAccess
+from eagle.logger import logger
 from eagle.unused.ignore import should_ignore
 from eagle.unused.state import LoadedRelation, collector
 
