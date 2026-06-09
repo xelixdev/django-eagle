@@ -15,6 +15,7 @@ INSTALLED_APPS = [
     "excluded_app",
 ]
 
+EAGLE_ENABLED = True
 EAGLE_EXCLUDE_APPS = ["excluded_app"]
 
 MIDDLEWARE = [
