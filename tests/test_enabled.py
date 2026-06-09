@@ -1,7 +1,11 @@
+import pytest
 from django.test import override_settings
+from django.urls import reverse
+from rest_framework.test import APIClient
 
+from eagle import UnusedRelatedAccess
 from eagle.config import is_enabled
-from tests.base import BaseRequestTest
+from tests.base import BaseRequestTest, EagleGraph
 
 
 class TestEnabledDefault:
@@ -20,8 +24,12 @@ class TestEnabledDefault:
 
 class TestDisabledRequest(BaseRequestTest):
     @override_settings(EAGLE_ENABLED=False)
-    def test_unused_eager_load_does_not_warn_when_disabled(self):
-        assert self.request(select_related="location") == []
+    def test_unused_eager_load_does_not_warn_when_disabled(self, api_client: APIClient, eagle_graph: EagleGraph):
+        url = reverse("eagle-detail", kwargs={"pk": eagle_graph.eagle.pk})
+        response = api_client.get(url, {"select_related": "location"})
+        assert response.status_code == 200
 
-    def test_unused_eager_load_warns_when_enabled(self):
-        assert len(self.request(select_related="location")) == 1
+    def test_unused_eager_load_warns_when_enabled(self, api_client: APIClient, eagle_graph: EagleGraph):
+        url = reverse("eagle-detail", kwargs={"pk": eagle_graph.eagle.pk})
+        with pytest.raises(UnusedRelatedAccess):
+            api_client.get(url, {"select_related": "location"})

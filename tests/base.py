@@ -1,89 +1,76 @@
-import warnings
-from types import SimpleNamespace
+from dataclasses import dataclass
 
 import pytest
-from django.urls import reverse
 from rest_framework.test import APIClient
 
-from eagle import UnusedRelatedAccess, unused
+from eagle import unused
+from test_project.models import Climate, Eagle, Eaglet, Location
 from tests.factories import ClimateFactory, EagleFactory, EagletFactory, LocationFactory
+
+
+@dataclass(frozen=True)
+class EagleGraph:
+    """A connected set of rows: a location with one climate, an eagle living there, and its eaglet."""
+
+    location: Location
+    climate: Climate
+    eagle: Eagle
+    eaglet: Eaglet
+
+
+@dataclass(frozen=True)
+class EagleWithLocation:
+    """An eagle paired with the location it lives in."""
+
+    location: Location
+    eagle: Eagle
 
 
 @pytest.mark.django_db
 class BaseRequestTest:
+    """Base for tests that drive the eagle detail endpoint; an unused eager load surfaces as an error."""
+
     @pytest.fixture
-    def api_client(self):
+    def api_client(self) -> APIClient:
+        """Return a DRF test client for calling the eagle endpoints."""
         return APIClient()
 
     @pytest.fixture
-    def eagle_graph(self, db):
+    def eagle_graph(self, db: None) -> EagleGraph:
+        """Build a fully connected eagle graph whose relations a request can eager-load."""
         location = LocationFactory(climates=[ClimateFactory()])
         eagle = EagleFactory(location=location)
         eaglet = EagletFactory(eagle=eagle)
-        return SimpleNamespace(
+        return EagleGraph(
             location=location,
             climate=location.climates.get(),
             eagle=eagle,
             eaglet=eaglet,
         )
 
-    @pytest.fixture
-    def warn_request(self, api_client, eagle_graph):
-        def _request(pk=None, **params):
-            target = eagle_graph.eagle.pk if pk is None else pk
-
-            url = reverse("eagle-detail", kwargs={"pk": target})
-
-            with warnings.catch_warnings(record=True) as caught:
-                warnings.simplefilter("always", UnusedRelatedAccess)
-                response = api_client.get(url, params)
-
-            assert response.status_code == 200, response.content
-            return [w.message for w in caught if issubclass(w.category, UnusedRelatedAccess)]
-
-        return _request
-
-    @pytest.fixture(autouse=True)
-    def setup(self, warn_request, eagle_graph):
-        self.request = warn_request
-        self.graph = eagle_graph
-
 
 @pytest.mark.django_db
 class MayAccessHelperTestBase:
+    """Base for tests of the may_access/mark_considered helpers run inside a tracking request."""
+
     @pytest.fixture
-    def eagle_with_location(self, db):
+    def eagle_with_location(self, db: None) -> EagleWithLocation:
+        """Create a single eagle and the location it lives in."""
         location = LocationFactory()
         eagle = EagleFactory(location=location)
-        return SimpleNamespace(location=location, eagle=eagle)
-
-    @pytest.fixture
-    def active_request(self):
-        unused.begin_request()
-        yield
-        if unused.is_active():
-            unused.end_request()
-
-    @pytest.fixture
-    def flush_warnings(self, active_request):
-        def _flush():
-            with warnings.catch_warnings(record=True) as caught:
-                warnings.simplefilter("always", UnusedRelatedAccess)
-                unused.end_request()
-            unused.begin_request()
-            return [w.message for w in caught if issubclass(w.category, UnusedRelatedAccess)]
-
-        return _flush
+        return EagleWithLocation(location=location, eagle=eagle)
 
     @pytest.fixture(autouse=True)
-    def setup(self, eagle_with_location, flush_warnings):
-        self.data = eagle_with_location
-        self.flush = flush_warnings
+    def active_request(self) -> None:
+        """Open a tracking request before each test; the global reset fixture closes it afterwards."""
+        unused.begin_request()
 
 
 class InactiveCollectorTestBase:
+    """Base for tests that must run with no active tracking request."""
+
     @pytest.fixture(autouse=True)
-    def inactive_collector(self):
+    def inactive_collector(self) -> None:
+        """Ensure no tracking request is active before the test body runs."""
         if unused.is_active():
             unused.end_request()
-        return

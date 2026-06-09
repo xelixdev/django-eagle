@@ -33,6 +33,11 @@ python_files = ["test_*.py"]
 # "." resolves the `tests` suite package; "tests" resolves the test apps
 # (test_project, excluded_app) that live inside it as top-level imports.
 pythonpath = [".", "tests"]
+# Treat an unused eager load as a hard failure by default:
+# any UnusedRelatedAccess that escapes an explicit capture block fails the test.
+filterwarnings = [
+    "error::eagle.exceptions.UnusedRelatedAccess",
+]
 
 [tool.coverage.run]
 branch = true
