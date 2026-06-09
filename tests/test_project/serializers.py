@@ -17,12 +17,26 @@ class EagleSerializer(serializers.Serializer):
         if "previous_locations" in access:
             related["previous_locations"] = [loc.id for loc in eagle.previous_locations.all()]
 
+        if "previous_locations__climates" in access:
+            related["previous_locations__climates"] = [
+                [climate.id for climate in loc.climates.all()] for loc in eagle.previous_locations.all()
+            ]
+
+        if "previous_locations__climates__locations" in access:
+            related["previous_locations__climates__locations"] = [
+                [[home.id for home in climate.locations.all()] for climate in loc.climates.all()]
+                for loc in eagle.previous_locations.all()
+            ]
+
         if "previous_locations_raw" in access:
             cache = eagle._prefetched_objects_cache
             related["previous_locations_raw"] = [loc.id for loc in cache["previous_locations"]]
 
         if "eaglet" in access:
             related["eaglet"] = eagle.eaglet.id
+
+        if "eaglet__eagle" in access:
+            related["eaglet__eagle"] = eagle.eaglet.eagle.id
 
         if "burrow" in access:
             related["burrow"] = eagle.burrow.depth

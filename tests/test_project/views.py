@@ -1,6 +1,6 @@
 import contextlib
 
-from django.db.models import Prefetch
+from django.db.models import Model, Prefetch
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -12,6 +12,13 @@ from test_project.serializers import EagleSerializer
 
 def _csv(value: str | None) -> list[str]:
     return [item for item in (value or "").split(",") if item]
+
+
+def _resolve_related_model(model: type[Model], lookup: str) -> type[Model]:
+    # Walk a ``__``-separated relation lookup from *model* and return the model at the end.
+    for part in lookup.split("__"):
+        model = model._meta.get_field(part).related_model
+    return model
 
 
 class EagleView(APIView):
@@ -35,6 +42,13 @@ class EagleView(APIView):
         if to_attr_spec:
             lookup, _, to_attr_name = to_attr_spec.partition(":")
             queryset = queryset.prefetch_related(Prefetch(lookup, to_attr=to_attr_name))
+
+        prefetch_select_spec = params.get("prefetch_select")
+        if prefetch_select_spec:
+            lookup, _, sr_field = prefetch_select_spec.partition(":")
+            related_model = _resolve_related_model(Eagle, lookup)
+            child_queryset = related_model.objects.select_related(sr_field)
+            queryset = queryset.prefetch_related(Prefetch(lookup, queryset=child_queryset))
 
         eagle = queryset.get(pk=pk)
 
