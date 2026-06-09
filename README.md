@@ -6,7 +6,7 @@
 
 [![CI](https://github.com/xelixdev/django-eagle/actions/workflows/ci.yml/badge.svg)](https://github.com/xelixdev/django-eagle/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/xelixdev/django-eagle/branch/main/graph/badge.svg)](https://codecov.io/gh/xelixdev/django-eagle)
-[![Python](https://img.shields.io/badge/python-3.13%2B-blue)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
 [![Django](https://img.shields.io/badge/django-5.2%2B-092e20)](https://www.djangoproject.com/)
 
 Catch wasted eager loads in your Django ORM queries.
@@ -46,7 +46,7 @@ Third-party and stdlib app models are never instrumented, so you only get signal
 
 ## Requirements
 
-- Python >= 3.13
+- Python >= 3.10
 - Django >= 5.2
 
 ## Getting started
