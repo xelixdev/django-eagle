@@ -13,18 +13,42 @@ R = TypeVar("R")
 
 
 def _normalize_model(model: type[Model] | str) -> str:
+    """
+    Return the string model name regardless of whether *model* is a class or already a string.
+
+    Args:
+        model: A Django model class or its string name.
+
+    Returns:
+        The model's ``__name__`` if a class is provided, otherwise the value cast to str.
+    """
     if isinstance(model, type):
         return model.__name__
     return str(model)
 
 
 def mark_considered(model: type[Model] | str, *cache_names: str) -> None:
+    """
+    Suppress warnings for *cache_names* on *model* in the current request.
+
+    Args:
+        model: The Django model class or its string name.
+    """
     normalized = _normalize_model(model)
     logger.debug("Marking considered %s, %s.", normalized, cache_names)
     mark_considered_internal(normalized, *cache_names)
 
 
 def may_access(model: type[Model] | str, *cache_names: str) -> Callable[[Callable[P, R]], Callable[P, R]]:
+    """
+    Decorator that suppresses warnings for *cache_names* on *model* after the decorated function returns.
+
+    Args:
+        model: The Django model class or its string name.
+
+    Returns:
+        A decorator that wraps the function and calls mark_considered_internal after it executes.
+    """
     model_name = _normalize_model(model)
 
     def decorator(fn: Callable[P, R]) -> Callable[P, R]:

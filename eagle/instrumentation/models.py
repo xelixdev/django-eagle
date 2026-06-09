@@ -7,6 +7,7 @@ from eagle.instrumentation.registry import is_instrumented
 
 
 def make_descriptor_eager(model: type[models.Model], attname: str) -> None:
+    """Fetch the descriptor at *attname* from *model* and make it eager in-place."""
     try:
         descriptor = getattr(model, attname)
     except AttributeError:
@@ -19,6 +20,7 @@ def make_remote_field_descriptor_eager(
     related_model: type[models.Model],
     remote_field: ForeignObjectRel,
 ) -> None:
+    """Make the reverse accessor on *related_model* eager if it is instrumented."""
     if not is_instrumented(related_model):
         return
     accessor_name = remote_field.get_accessor_name()
@@ -28,12 +30,14 @@ def make_remote_field_descriptor_eager(
 
 
 def make_prefetch_cache_eager(model: type[models.Model]) -> None:
+    """Install PrefetchCacheDescriptor on *model* to intercept prefetch cache writes."""
     if isinstance(model.__dict__.get("_prefetched_objects_cache"), descriptors.PrefetchCacheDescriptor):
         return
     model._prefetched_objects_cache = descriptors.PrefetchCacheDescriptor()
 
 
 def make_model_eager(model: type[models.Model]) -> None:
+    """Instrument all descriptors and the prefetch cache on *model* for access tracking."""
     make_prefetch_cache_eager(model)
     opts = model._meta
     for field in opts.local_fields + opts.local_many_to_many + opts.private_fields:
