@@ -30,7 +30,7 @@ env -u VIRTUAL_ENV -u DJANGO_SETTINGS_MODULE uv run --active pytest -q --cov
 
 CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs lint, type-check, and the test suite with coverage on every push and pull request, uploading coverage to Codecov.
 
-Tests live under `tests/`, exercising a minimal Django app in `test_project/`. They run real requests/querysets and assert on captured warnings rather than internal state. Factories are in `tests/factories.py`; shared fixtures and base classes in `tests/conftest.py` and `tests/base.py`.
+All test assets live under `tests/`: the pytest suite sits at the root, the minimal Django app under test is in `tests/test_project/`, and `tests/excluded_app/` covers excluded-app behavior. Tests run real requests/querysets and assert on captured warnings rather than internal state. Factories are in `tests/factories.py`; shared fixtures and base classes in `tests/base.py`.
 
 ## Lint, format, and type-check
 
