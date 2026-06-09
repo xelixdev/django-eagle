@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterator, Mapping
 from operator import attrgetter
-from typing import Any
+from typing import Any, TypeAlias
 
 from django.db import models
 from django.db.models import Prefetch
@@ -14,7 +14,7 @@ from django.db.models.query_utils import select_related_descend
 from eagle import unused
 from eagle.instrumentation.registry import is_instrumented
 
-type Getter = tuple[str, Callable[[models.Model], Any], tuple[Getter, ...]]
+Getter: TypeAlias = tuple[str, Callable[[models.Model], Any], tuple["Getter", ...]]
 
 cached_value_getter = attrgetter("get_cached_value")
 
