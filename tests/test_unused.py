@@ -1,3 +1,5 @@
+import pytest
+
 from eagle import unused
 from test_project import views
 from test_project.models import Eagle
@@ -78,10 +80,15 @@ class TestWarnUnusedToAttrPrefetch(BaseRequestTest):
 
 
 class TestWarnUnusedNestedPrefetch(BaseRequestTest):
-    def test_nested_prefetched_child_unused_warns_with_propagated_location(self):
+    @pytest.fixture
+    def previous_location_with_climate(self):
+        # Give the eagle a previous location that itself has a climate, so a
+        # ``previous_locations__climates__locations`` chain has rows at every depth.
         previous = LocationFactory(climates=[ClimateFactory()])
         self.graph.eagle.previous_locations.add(previous)
+        return previous
 
+    def test_nested_prefetched_child_unused_warns_with_propagated_location(self, previous_location_with_climate):
         warns = self.request(
             prefetch_related="previous_locations__climates",
             access="previous_locations",
@@ -91,3 +98,40 @@ class TestWarnUnusedNestedPrefetch(BaseRequestTest):
         assert 'prefetch_related("climates")' in str(warns[0])
         assert "<Location instance>" in str(warns[0])
         assert views.__file__ in str(warns[0])
+
+    def test_depth_three_nested_prefetch_unused_warns(self, previous_location_with_climate):
+        # Prefetch three levels deep but stop reading at the climate level: the
+        # deepest reverse-M2M (``Climate.locations``) is loaded but never accessed.
+        warns = self.request(
+            prefetch_related="previous_locations__climates__locations",
+            access="previous_locations__climates",
+        )
+
+        assert len(warns) == 1
+        assert 'prefetch_related("locations")' in str(warns[0])
+        assert "<Climate instance>" in str(warns[0])
+        assert views.__file__ in str(warns[0])
+
+    def test_depth_three_nested_prefetch_accessed_no_warning(self, previous_location_with_climate):
+        assert (
+            self.request(
+                prefetch_related="previous_locations__climates__locations",
+                access="previous_locations__climates__locations",
+            )
+            == []
+        )
+
+
+class TestWarnUnusedSelectRelatedWithinPrefetch(BaseRequestTest):
+    def test_select_related_within_prefetch_queryset_unused_warns(self):
+        # Prefetch("eaglet", queryset=Eaglet.objects.select_related("eagle")): the prefetched
+        # eaglet is read, but the select_related FK back to its eagle never is.
+        warns = self.request(prefetch_select="eaglet:eagle", access="eaglet")
+
+        assert len(warns) == 1
+        assert 'select_related("eagle")' in str(warns[0])
+        assert "<Eaglet instance>" in str(warns[0])
+        assert views.__file__ in str(warns[0])
+
+    def test_select_related_within_prefetch_queryset_accessed_no_warning(self):
+        assert self.request(prefetch_select="eaglet:eagle", access="eaglet__eagle") == []
