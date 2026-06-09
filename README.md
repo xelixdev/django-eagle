@@ -44,6 +44,8 @@ On app startup, eagle instruments your **first-party** models (apps that don't l
 
 Third-party and stdlib app models are never instrumented, so you only get signal about code you own.
 
+For a deeper look at the internals — how the ORM is instrumented, how loads and accesses are tracked per request, and diagrams of the flow — see [ARCHITECTURE.md](ARCHITECTURE.md).
+
 ## Requirements
 
 - Python >= 3.10
