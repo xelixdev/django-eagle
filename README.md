@@ -25,7 +25,7 @@ def eagle_detail(request, pk):
     return JsonResponse({"name": eagle.name})
 ```
 
-That join was paid for and thrown away. With `django-eagle` installed, the request emits:
+That join was evaluated and thrown away. With `django-eagle` installed, the request emits:
 
 ```
 UnusedRelatedAccess: select_related("location") was loaded but never accessed
@@ -93,7 +93,7 @@ EAGLE_ENABLED = DEBUG
 
 ### Use
 
-Run your app and exercise a view. If a query eager-loads a relation that the view never reads, you'll see a warning:
+Run your app and send a request that hits one of your views. If that view eager-loads a relation it never reads, you'll see a warning:
 
 ```
 UnusedRelatedAccess: select_related("location") was loaded but never accessed
@@ -104,9 +104,16 @@ Fix it by dropping the unused `select_related` / `prefetch_related`, or tell eag
 
 ## Suppressing false positives
 
-Some relations are accessed in ways eagle can't see (e.g. conditionally accessed, serialized in C, passed to a template, consumed by a library). Three escape hatches:
+eagle spots access by intercepting Django's relation descriptors, which fire on ordinary attribute access — so template rendering, conditional reads, and Python-level serializers (including DRF) are all tracked while they run. A warning is still a false positive in two cases:
+
+- **The access skips the descriptor entirely** — code that reads the cached related object straight out of a model's internal field cache (`instance._state.fields_cache`) or `__dict__`, as some C extensions and hand-rolled fast-path serializers do, never triggers it.
+- **The relation is only read on some code paths** — a queryset built up front (often a DRF `get_queryset`) can be returned early, on a validation error or permission check, before anything reads the relation. The eager load is right for the common path, but on that request the relation went untouched, so eagle flags it.
+
+Reach for one of these escape hatches:
 
 ### `mark_considered` — mark relations as accessed imperatively
+
+Call it with the model first (a class or its name string), followed by one or more relation cache names. Eagle then treats those relations as accessed for the rest of the current request:
 
 ```python
 from eagle import mark_considered
@@ -114,7 +121,24 @@ from eagle import mark_considered
 mark_considered(Eagle, "location", "previous_locations")
 ```
 
-Accepts a model class or a model-name string, plus one or more relation cache names. No-op when no request is being tracked.
+**When you'd use this:** a DRF view eager-loads in `get_queryset`, but an action returns early — on a permission check, a validation error, or other custom logic — before the serializer reads the relation. The load is right for the normal flow, so silence the warning on the early-return path instead of dropping the `select_related`:
+
+```python
+class EagleViewSet(viewsets.ModelViewSet):
+    def get_queryset(self):
+        return Eagle.objects.select_related("location")
+
+    def retrieve(self, request, *args, **kwargs):
+        eagle = self.get_object()
+        if not request.user.can_view(eagle):
+            mark_considered(Eagle, "location")  # not read on this path, but the load is intentional
+            return Response(status=403)
+        return Response(self.get_serializer(eagle).data)  # reads location
+```
+
+The same applies to a serializer that reads a relation only inside a conditional branch: on requests where the branch doesn't run, mark it so the intentional load isn't flagged. `mark_considered` is a no-op when no request is being tracked, so it's safe to leave in code paths that also run outside a request (management commands, shell, tests).
+
+**Use it sparingly.** Every `mark_considered` call is a standing assertion that a relation is used — it stays in the code and unconditionally forces eagle to treat the relation as accessed, even if a later refactor stops reading it. That turns off exactly the signal eagle exists to give you, so reach for it only when an eager load is genuinely justified but unobservable on a path, prefer the narrower [`may_access`](#may_access--decorator-that-marks-on-normal-return) or an [ignore rule](#eagle_warn_unused_ignore--ignore-rules-in-settings) where they fit, and audit existing calls periodically to make sure each is still earning its place.
 
 ### `may_access` — decorator that marks on normal return
 
@@ -156,7 +180,11 @@ By default eagle only instruments first-party apps (those that don't live under 
 EAGLE_THIRD_PARTY_INCLUDE_APPS = ["my_shared_models"]
 ```
 
-An app is instrumented when its label is **not** in `EAGLE_EXCLUDE_APPS` **and** (it is first-party **or** its module is under a package in `EAGLE_THIRD_PARTY_INCLUDE_APPS`). `EAGLE_EXCLUDE_APPS` (matched by app label) always wins.
+eagle decides whether to instrument each installed app like this:
+
+- **First-party apps** (those not under `site-packages`) are instrumented by default.
+- **Third-party apps** are instrumented only when their module name matches an entry in `EAGLE_THIRD_PARTY_INCLUDE_APPS`.
+- **`EAGLE_EXCLUDE_APPS` overrides both** — a listed app is never instrumented, even if it's first-party or explicitly included.
 
 ## Public API
 
