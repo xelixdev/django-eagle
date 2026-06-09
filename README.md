@@ -79,13 +79,13 @@ The middleware is what scopes tracking to a request and flushes warnings when th
 
 ### Enable / disable
 
-eagle is enabled by default. To turn it off entirely — no ORM patching, no per-request tracking, zero runtime overhead — set:
+eagle is disabled by default. When disabled, eagle skips all instrumentation at app startup and the middleware becomes a no-op. To turn it on - set:
 
 ```python
-EAGLE_ENABLED = False
+EAGLE_ENABLED = True
 ```
 
-When disabled, eagle skips all instrumentation at app startup and the middleware becomes a no-op. Keep it on in development/CI and off in production, for example:
+To keep it on for local development/CI and off in production, I suggest:
 
 ```python
 EAGLE_ENABLED = DEBUG
