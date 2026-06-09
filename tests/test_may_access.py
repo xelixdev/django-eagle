@@ -1,45 +1,59 @@
 import asyncio
 
 import pytest
+from django.urls import reverse
+from rest_framework.test import APIClient
 
 import eagle
-from eagle import mark_considered, may_access
+from eagle import UnusedRelatedAccess, mark_considered, may_access, unused
 from test_project.models import Eagle
 from tests.base import (
     BaseRequestTest,
+    EagleGraph,
+    EagleWithLocation,
     InactiveCollectorTestBase,
     MayAccessHelperTestBase,
 )
 
 
 class TestMayAccess(BaseRequestTest):
-    def test_may_access_suppresses_when_called(self):
-        warns = self.request(select_related="location", may_access="location", may_access_call="1")
-        assert warns == []
+    def test_may_access_suppresses_when_called(self, api_client: APIClient, eagle_graph: EagleGraph):
+        url = reverse("eagle-detail", kwargs={"pk": eagle_graph.eagle.pk})
+        response = api_client.get(url, {"select_related": "location", "may_access": "location", "may_access_call": "1"})
+        assert response.status_code == 200
 
-    def test_may_access_does_not_suppress_when_not_called(self):
-        warns = self.request(select_related="location", may_access="location")
-        assert len(warns) == 1
-        assert 'select_related("location")' in str(warns[0])
+    def test_may_access_does_not_suppress_when_not_called(self, api_client: APIClient, eagle_graph: EagleGraph):
+        url = reverse("eagle-detail", kwargs={"pk": eagle_graph.eagle.pk})
+        with pytest.raises(UnusedRelatedAccess) as exc_info:
+            api_client.get(url, {"select_related": "location", "may_access": "location"})
+        assert 'select_related("location")' in str(exc_info.value)
 
-    def test_may_access_multiple_fields(self):
-        warns = self.request(
-            select_related="location",
-            prefetch_related="previous_locations",
-            may_access="location,previous_locations",
-            may_access_call="1",
+    def test_may_access_multiple_fields(self, api_client: APIClient, eagle_graph: EagleGraph):
+        url = reverse("eagle-detail", kwargs={"pk": eagle_graph.eagle.pk})
+        response = api_client.get(
+            url,
+            {
+                "select_related": "location",
+                "prefetch_related": "previous_locations",
+                "may_access": "location,previous_locations",
+                "may_access_call": "1",
+            },
         )
-        assert warns == []
+        assert response.status_code == 200
 
-    def test_may_access_does_not_mark_when_wrapped_raises(self):
-        warns = self.request(
-            select_related="location",
-            may_access="location",
-            may_access_call="1",
-            may_access_raise="1",
-        )
-        assert len(warns) == 1
-        assert 'select_related("location")' in str(warns[0])
+    def test_may_access_does_not_mark_when_wrapped_raises(self, api_client: APIClient, eagle_graph: EagleGraph):
+        url = reverse("eagle-detail", kwargs={"pk": eagle_graph.eagle.pk})
+        with pytest.raises(UnusedRelatedAccess) as exc_info:
+            api_client.get(
+                url,
+                {
+                    "select_related": "location",
+                    "may_access": "location",
+                    "may_access_call": "1",
+                    "may_access_raise": "1",
+                },
+            )
+        assert 'select_related("location")' in str(exc_info.value)
 
 
 class TestPublicExport:
@@ -49,7 +63,7 @@ class TestPublicExport:
 
 
 class TestMayAccessHelper(MayAccessHelperTestBase):
-    def test_may_access_async_function_suppresses_after_await(self):
+    def test_may_access_async_function_suppresses_after_await(self, eagle_with_location: EagleWithLocation):
         Eagle.objects.select_related("location").get()
 
         @may_access(Eagle, "location")
@@ -57,9 +71,10 @@ class TestMayAccessHelper(MayAccessHelperTestBase):
             return 7
 
         assert asyncio.run(consumer()) == 7
-        assert self.flush() == []
+        # location was marked accessed after the await, so ending the request emits no warning (no error).
+        unused.end_request()
 
-    def test_may_access_async_function_no_mark_when_raises(self):
+    def test_may_access_async_function_no_mark_when_raises(self, eagle_with_location: EagleWithLocation):
         Eagle.objects.select_related("location").get()
 
         class Boom(Exception):
@@ -71,7 +86,9 @@ class TestMayAccessHelper(MayAccessHelperTestBase):
 
         with pytest.raises(Boom):
             asyncio.run(consumer())
-        assert len(self.flush()) == 1
+        # The wrapped function raised before marking, so the loaded relation is still unused.
+        with pytest.raises(UnusedRelatedAccess):
+            unused.end_request()
 
 
 class TestMayAccessInactiveCollector(InactiveCollectorTestBase):
