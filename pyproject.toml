@@ -31,7 +31,9 @@ dev = [
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "test_project.settings"
 python_files = ["test_*.py"]
-pythonpath = ["."]
+# "." resolves the `tests` suite package; "tests" resolves the test apps
+# (test_project, excluded_app) that live inside it as top-level imports.
+pythonpath = [".", "tests"]
 
 [tool.coverage.run]
 branch = true

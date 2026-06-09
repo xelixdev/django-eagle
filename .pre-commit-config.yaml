@@ -41,7 +41,7 @@ repos:
   - id: mixed-line-ending
   - id: name-tests-test
     args: [ "--pytest-test-first" ]
-    exclude: (base|factories|utils|patch|conftest|fixtures|parametrize|models|settings)
+    exclude: (base|factories|utils|patch|conftest|fixtures|parametrize|models|settings|serializers|urls|views)
   - id: check-added-large-files
     args: ["--maxkb=2048"]
 - repo: https://github.com/mikicz/gitlint

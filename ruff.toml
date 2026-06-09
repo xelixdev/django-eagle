@@ -1,5 +1,8 @@
 line-length = 120
 target-version = "py310"
+# Mirror pytest's pythonpath so the test apps under tests/ (test_project,
+# excluded_app) are detected as first-party for import sorting.
+src = [".", "tests"]
 
 [lint]
 select = [
