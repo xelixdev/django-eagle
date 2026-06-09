@@ -4,16 +4,20 @@ from eagle.logger import logger
 
 
 class EagleAppConfig(AppConfig):
+    """Django AppConfig that wires up Eagle's ORM instrumentation on startup."""
+
     name = __package__
 
     def ready(self) -> None:
+        """Wire up Eagle's ORM instrumentation once all apps have finished loading."""
+        # Deferred imports avoid AppRegistryNotReady when this module is imported before apps finish populating.
         from eagle.config import is_enabled
         from eagle.instrumentation import (
             get_first_party_models,
-            install,
             make_contenttypes_eager,
             make_model_eager,
-            register,
+            patch_orm,
+            register_tracked_models,
         )
 
         if not is_enabled():
@@ -31,12 +35,12 @@ class EagleAppConfig(AppConfig):
         models = list(get_first_party_models())
 
         logger.debug("Registering models.")
-        register(models)
+        register_tracked_models(models)
 
         logger.debug("Making models eager.")
         for model in models:
             make_model_eager(model)
 
-        logger.debug("Installing eagle library.")
-        install()
-        logger.debug("Installed eagle library.")
+        logger.debug("Patching ORM.")
+        patch_orm()
+        logger.debug("ORM patched.")

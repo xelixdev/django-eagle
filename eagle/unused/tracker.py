@@ -7,15 +7,23 @@ from eagle.unused.state import LoadedRelation, collector
 
 
 def is_active() -> bool:
+    """
+    Return True if Eagle is currently tracking a request.
+
+    Returns:
+        True when the request collector is active, False otherwise.
+    """
     return collector.active
 
 
 def begin_request() -> None:
+    """Activate the collector for a new request."""
     logger.debug("Begin request.")
     collector.start()
 
 
 def end_request() -> None:
+    """Emit warnings for all loaded-but-not-consumed relations, then deactivate the collector."""
     logger.debug("End request.")
 
     if not collector.active:
@@ -46,6 +54,14 @@ def end_request() -> None:
 
 
 def _emit_unused_warning(*, model_name: str, cache_name: str, relation: LoadedRelation) -> None:
+    """
+    Emit a single UnusedRelatedAccess warning with a descriptive message.
+
+    Args:
+        model_name: Django model class name where the relation was loaded.
+        cache_name: ORM cache key for the relation.
+        relation: Snapshot of the loaded relation including kind and call-site location.
+    """
     location_suffix = f" Queryset marked at {relation.location}." if relation.location else ""
 
     warnings.warn(

@@ -62,7 +62,7 @@ not-iterable = false
 select = ['MLL']
 
 [tool.pydoclint]
-style = 'sphinx'
+style = 'google'
 arg-type-hints-in-docstring = false
 check-arg-order = false
 should-document-star-arguments = false

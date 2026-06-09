@@ -32,6 +32,9 @@ select = [
     # https://docs.astral.sh/ruff/rules/#flake8-simplify-sim
     "SIM",
     # https://docs.astral.sh/ruff/rules/#pydocstyle-d
+    # D1xx: require docstrings on all public classes, methods, and functions.
+    "D101", "D102", "D103",
+    # D2xx/D3xx: docstring formatting (no blank lines, whitespace, quotes, etc.)
     "D201", "D202", "D204", "D206", "D207", "D208", "D209", "D210", "D211", "D213", "D214", "D215", "D300", "D403",
     "D419",
     # https://docs.astral.sh/ruff/rules/#flake8-implicit-str-concat-isc
@@ -116,7 +119,8 @@ allowed-confusables = ["×"]
 "eagle/instrumentation/descriptors.py" = ["PLC0415"]
 # unittest.TestCase suite: keep self.assert* (PT009/PT027), local test exception
 # classes (N818), and an intentionally-lowercase asserted docstring (D403).
-"tests/**" = ["RUF018", "FLY", "PYI024", "SLF001", "PT009", "PT027", "N818", "D403"]
+# D1xx relaxed in tests: docstrings on test helpers and test methods add noise without value.
+"tests/**" = ["RUF018", "FLY", "PYI024", "SLF001", "PT009", "PT027", "N818", "D403", "D100", "D101", "D102", "D103", "D104"]
 
 [lint.flake8-tidy-imports]
 ban-relative-imports = "all"
