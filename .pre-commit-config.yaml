@@ -1,0 +1,50 @@
+default_language_version:
+  python: python3.14
+default_install_hook_types: [pre-commit, commit-msg]
+default_stages: [pre-commit]
+repos:
+- repo: https://github.com/charliermarsh/ruff-pre-commit
+  rev: 'v0.15.12'
+  hooks:
+  - id: ruff
+    args: [ "--fix" ]
+  - id: ruff-format
+- repo: https://github.com/facebook/pyrefly-pre-commit
+  rev: "1.0.0"
+  hooks:
+  - id: pyrefly-check
+    additional_dependencies: ["django>=5.2"]
+- repo: https://github.com/adamchainz/django-upgrade
+  rev: "1.30.0"
+  hooks:
+  - id: django-upgrade
+    args: [--target-version, "5.1"]
+- repo: https://github.com/pycqa/flake8
+  rev: '7.3.0'
+  hooks:
+  - id: flake8
+    additional_dependencies: [module-level-lint, flake8-pyproject]
+- repo: https://github.com/jsh9/pydoclint
+  rev: "0.8.3"
+  hooks:
+    - id: pydoclint
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: "v6.0.0"
+  hooks:
+  - id: trailing-whitespace
+  - id: check-ast
+  - id: check-docstring-first
+  - id: check-json
+  - id: check-toml
+  - id: check-yaml
+  - id: end-of-file-fixer
+  - id: mixed-line-ending
+  - id: name-tests-test
+    args: [ "--pytest-test-first" ]
+    exclude: (base|factories|utils|patch|conftest|fixtures|parametrize|models|settings)
+  - id: check-added-large-files
+    args: ["--maxkb=2048"]
+- repo: https://github.com/mikicz/gitlint
+  rev: "22dc890e707ba5986336d41682e6e340eff4854d"
+  hooks:
+    - id: gitlint
