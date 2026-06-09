@@ -5,12 +5,17 @@ from tests.base import BaseRequestTest
 
 
 class TestEnabledDefault:
-    def test_enabled_by_default(self):
-        assert is_enabled() is True
+    @override_settings(EAGLE_ENABLED=None)
+    def test_disabled_by_default(self):
+        assert is_enabled() is False
 
     @override_settings(EAGLE_ENABLED=False)
     def test_disabled_when_setting_false(self):
         assert is_enabled() is False
+
+    @override_settings(EAGLE_ENABLED=True)
+    def test_enabled_when_setting_true(self):
+        assert is_enabled() is True
 
 
 class TestDisabledRequest(BaseRequestTest):
