@@ -26,7 +26,7 @@ jobs:
         run: uv python install 3.10
 
       - name: Sync dependencies
-        run: uv sync --frozen
+        run: uv sync
 
       - name: Lint
         run: uvx ruff@0.15.12 check
