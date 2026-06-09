@@ -11,6 +11,3 @@ min-length=5
 
 [body-min-length]
 min-length=10
-
-[author-valid-email]
-regex=[^@]+@xelix.com

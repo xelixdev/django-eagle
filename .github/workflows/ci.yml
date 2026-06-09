@@ -28,14 +28,8 @@ jobs:
       - name: Sync dependencies
         run: uv sync
 
-      - name: Lint
-        run: uvx ruff@0.15.12 check
-
-      - name: Format check
-        run: uvx ruff@0.15.12 format --check
-
-      - name: Type check
-        run: uv run pyrefly check
+      - name: pre-commit
+        uses: pre-commit/action@v3.0.1
 
       - name: Test
         run: uv run pytest -q --cov --cov-report=xml --cov-report=term-missing
