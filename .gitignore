@@ -10,6 +10,8 @@ wheels/
 .venv
 .idea
 .coverage
+coverage.xml
+uv.lock
 
 # AI tooling
 .claude
