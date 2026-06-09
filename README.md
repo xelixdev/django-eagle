@@ -104,10 +104,9 @@ Fix it by dropping the unused `select_related` / `prefetch_related`, or tell eag
 
 ## Suppressing false positives
 
-eagle spots access by intercepting Django's relation descriptors, which fire on ordinary attribute access — so template rendering, conditional reads, and Python-level serializers (including DRF) are all tracked while they run. A warning is still a false positive in two cases:
+eagle spots access by intercepting Django's relation descriptors, which fire on ordinary attribute access — so template rendering, conditional reads, and Python-level serializers (including DRF) are all tracked while they run. A warning is still a false positive in the following cases:
 
-- **The access skips the descriptor entirely** — code that reads the cached related object straight out of a model's internal field cache (`instance._state.fields_cache`) or `__dict__`, as some C extensions and hand-rolled fast-path serializers do, never triggers it.
-- **The relation is only read on some code paths** — a queryset built up front (often a DRF `get_queryset`) can be returned early, on a validation error or permission check, before anything reads the relation. The eager load is right for the common path, but on that request the relation went untouched, so eagle flags it.
+- **The relation is only read on some code paths** — a queryset built up front (often a DRF `get_queryset`) can be returned early, on a (serializer) validation error or permission check, before anything reads the relation. You may also have conditional logic in a serializer which prevents your field from being read in certain cases. The eager load is right for the common path, but on that request the relation went untouched, so eagle flags it.
 
 Reach for one of these escape hatches:
 
@@ -121,7 +120,7 @@ from eagle import mark_considered
 mark_considered(Eagle, "location", "previous_locations")
 ```
 
-**When you'd use this:** a DRF view eager-loads in `get_queryset`, but an action returns early — on a permission check, a validation error, or other custom logic — before the serializer reads the relation. The load is right for the normal flow, so silence the warning on the early-return path instead of dropping the `select_related`:
+**When you'd use this:** a DRF view eager-loads in `get_queryset`, but an action returns early — on a permission check, a (serializer) validation error, or other custom logic — before the serializer reads the relation. The load is right for the normal flow, so silence the warning on the early-return path instead of dropping the `select_related`:
 
 ```python
 class EagleViewSet(viewsets.ModelViewSet):
