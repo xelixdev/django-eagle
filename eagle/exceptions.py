@@ -1,4 +1,4 @@
-class EagleWarning(Warning):
+class EagleWarning(UserWarning):
     """Base warning class for all Eagle diagnostics."""
 
 
