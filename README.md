@@ -46,6 +46,25 @@ Third-party and stdlib app models are never instrumented, so you only get signal
 
 For a deeper look at the internals — how the ORM is instrumented, how loads and accesses are tracked per request, and diagrams of the flow — see [ARCHITECTURE.md](ARCHITECTURE.md).
 
+## Detection granularity
+
+Tracking is keyed by **`(model, relation)`** and aggregated across the whole request — not per queryset, call site, or model instance. A relation is reported only when it is loaded *somewhere* in the request and accessed *nowhere*. The moment any access to `Eagle.location` is recorded, every load of `Eagle.location` in that request counts as used.
+
+So a genuinely wasteful eager load can currently go unreported when the same relation is also used elsewhere in the request:
+
+```python
+# First loop reads location — Eagle.location is now marked used for the whole request.
+for obj in Eagle.objects.select_related("location"):
+    print(obj.location)
+
+# Second loop never reads location, but the wasted join is NOT flagged:
+# Eagle.location was already recorded as used above.
+for obj in Eagle.objects.select_related("location"):
+    print(obj.id)
+```
+
+The reverse holds too: if the first loop never touched `location` and the second did, neither load is flagged. The common case — a single eager load of a relation per request — is reported accurately; the limitation only affects the same `(model, relation)` loaded more than once in one request.
+
 ## Requirements
 
 - Python >= 3.10
