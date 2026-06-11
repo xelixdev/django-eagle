@@ -36,9 +36,10 @@ Django's ORM, and a **per-request** phase that records loads/accesses and emits 
 ![phases.png](assets/architecture/phases.png)
 
 The two phases are decoupled: instrumentation makes the ORM *capable* of tracking, but
-nothing is actually recorded unless the middleware has opened a request scope. Outside a
-request (management commands, the shell, tests without the middleware) the patched code
-checks `collector.active` / `_state.warn_unused` and quietly does nothing.
+nothing is actually recorded unless a tracking scope has been opened — by the middleware
+(per HTTP request) or by the `warn_unused` decorator (per call). With no scope open
+(management commands, the shell, tests without either) the patched code checks
+`collector.active` / `_state.warn_unused` and quietly does nothing.
 
 ## Phase 1 — Startup instrumentation
 
@@ -116,8 +117,11 @@ reads of the cache are observable.
 
 ## Phase 2 — Per-request lifecycle
 
-`EagleWarnUnusedMiddleware` opens and closes a tracking scope around each request.
-Everything recorded in between lands in a thread-local `Collector`.
+`EagleWarnUnusedMiddleware` opens and closes a tracking scope around each request; the
+`warn_unused` decorator (`eagle/decorators.py`) does the same around a single function
+call, for code that runs outside the request cycle. Both are thin wrappers over
+`begin_request()` / `end_request()`. Everything recorded in between lands in a
+thread-local `Collector`.
 
 ![img_1.png](assets/architecture/lifecycle.png)
 
@@ -210,6 +214,7 @@ subclass of `EagleWarning`), so you can route, filter, or escalate it with the s
 | `eagle/apps.py` | Startup entrypoint (`AppConfig.ready`); wires everything together. |
 | `eagle/config.py` | `is_enabled()` — reads `EAGLE_ENABLED`. |
 | `eagle/middleware.py` | Scopes tracking to a request; flushes warnings on response. |
+| `eagle/decorators.py` | `warn_unused` — scopes tracking around a single call (outside the request cycle). |
 | `eagle/sinks.py` | Public `mark_considered` / `may_access` escape hatches. |
 | `eagle/exceptions.py` | `EagleWarning` / `UnusedRelatedAccess` warning categories. |
 | `eagle/instrumentation/scope.py` | Decides which apps/models to instrument. |
