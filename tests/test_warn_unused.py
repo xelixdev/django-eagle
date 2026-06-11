@@ -6,10 +6,10 @@ from django.test import override_settings
 import eagle
 from eagle import UnusedRelatedAccess, unused, warn_unused
 from test_project.models import Eagle
-from tests.base import BaseRequestTest, EagleGraph
+from tests.base import EagleGraph, EagleGraphMixin
 
 
-class TestWarnUnusedSync(BaseRequestTest):
+class TestWarnUnusedSync(EagleGraphMixin):
     """The decorator scopes tracking to a single synchronous call, like the middleware does for a request."""
 
     def test_unused_eager_load_warns(self, eagle_graph: EagleGraph):
@@ -47,7 +47,7 @@ class TestWarnUnusedSync(BaseRequestTest):
         assert unused.is_active() is False
 
 
-class TestWarnUnusedDisabled(BaseRequestTest):
+class TestWarnUnusedDisabled(EagleGraphMixin):
     """When EAGLE_ENABLED is falsy the decorator is a transparent passthrough."""
 
     @override_settings(EAGLE_ENABLED=False)
