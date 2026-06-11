@@ -129,3 +129,82 @@ class TestWarnUnusedAsyncNoDb:
         # Tracking begins and ends around the await; with no loads, nothing is warned.
         assert asyncio.run(producer()) == 7
         assert unused.is_active() is False
+
+
+class TestWarnUnusedContextManager(EagleGraphMixin):
+    """warn_unused() scopes tracking to a `with` block, like the decorator does for a call."""
+
+    def test_unused_eager_load_warns(self, eagle_graph: EagleGraph):
+        pk = eagle_graph.eagle.pk
+
+        with pytest.raises(UnusedRelatedAccess) as exc_info, warn_unused():
+            # Eager-load location but never read it: the join is wasted.
+            Eagle.objects.select_related("location").get(pk=pk)
+        assert 'select_related("location")' in str(exc_info.value)
+
+    def test_accessed_eager_load_no_warning(self, eagle_graph: EagleGraph):
+        pk = eagle_graph.eagle.pk
+
+        with warn_unused():
+            eagle = Eagle.objects.select_related("location").get(pk=pk)
+            # The relation is read before the block ends, so nothing is emitted.
+            assert eagle.location == eagle_graph.location
+
+    def test_collector_inactive_after_block(self, eagle_graph: EagleGraph):
+        pk = eagle_graph.eagle.pk
+
+        with warn_unused():
+            eagle = Eagle.objects.select_related("location").get(pk=pk)
+            _ = eagle.location
+
+        assert unused.is_active() is False
+
+
+class TestWarnUnusedContextManagerDisabled(EagleGraphMixin):
+    """When EAGLE_ENABLED is falsy entering the block is a no-op."""
+
+    @override_settings(EAGLE_ENABLED=False)
+    def test_disabled_is_passthrough_no_warning(self, eagle_graph: EagleGraph):
+        pk = eagle_graph.eagle.pk
+
+        with warn_unused():
+            Eagle.objects.select_related("location").get(pk=pk)
+
+        assert unused.is_active() is False
+
+
+class TestWarnUnusedContextManagerExceptions(EagleGraphMixin):
+    """Tracking always ends, so a failing block never leaks an active collector onto the thread."""
+
+    def test_exception_propagates_and_no_leak(self):
+        class Boom(Exception):
+            pass
+
+        with pytest.raises(Boom), warn_unused():
+            raise Boom
+
+        assert unused.is_active() is False
+
+
+class TestWarnUnusedParenthesisedDecorator(EagleGraphMixin):
+    """warn_unused() also works as a parenthesised decorator, like the bare form."""
+
+    def test_unused_eager_load_warns(self, eagle_graph: EagleGraph):
+        pk = eagle_graph.eagle.pk
+
+        @warn_unused()
+        def load_unused() -> None:
+            Eagle.objects.select_related("location").get(pk=pk)
+
+        with pytest.raises(UnusedRelatedAccess) as exc_info:
+            load_unused()
+        assert 'select_related("location")' in str(exc_info.value)
+
+    def test_preserves_wrapper_metadata(self):
+        @warn_unused()
+        def documented(x: int) -> int:
+            """Return x unchanged."""
+            return x
+
+        assert documented.__name__ == "documented"
+        assert documented.__doc__ == "Return x unchanged."

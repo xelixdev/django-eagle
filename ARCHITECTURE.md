@@ -37,7 +37,7 @@ Django's ORM, and a **per-request** phase that records loads/accesses and emits 
 
 The two phases are decoupled: instrumentation makes the ORM *capable* of tracking, but
 nothing is actually recorded unless a tracking scope has been opened — by the middleware
-(per HTTP request) or by the `warn_unused` decorator (per call). With no scope open
+(per HTTP request) or by `warn_unused` (per call or per `with` block). With no scope open
 (management commands, the shell, tests without either) the patched code checks
 `collector.active` / `_state.warn_unused` and quietly does nothing.
 
@@ -117,9 +117,9 @@ reads of the cache are observable.
 
 ## Phase 2 — Per-request lifecycle
 
-`EagleWarnUnusedMiddleware` opens and closes a tracking scope around each request; the
-`warn_unused` decorator (`eagle/decorators.py`) does the same around a single function
-call, for code that runs outside the request cycle. Both are thin wrappers over
+`EagleWarnUnusedMiddleware` opens and closes a tracking scope around each request;
+`warn_unused` (`eagle/decorators.py`) does the same around a single function call or
+`with` block, for code that runs outside the request cycle. Both are thin wrappers over
 `begin_request()` / `end_request()`. Everything recorded in between lands in a
 thread-local `Collector`.
 
@@ -214,7 +214,7 @@ subclass of `EagleWarning`), so you can route, filter, or escalate it with the s
 | `eagle/apps.py` | Startup entrypoint (`AppConfig.ready`); wires everything together. |
 | `eagle/config.py` | `is_enabled()` — reads `EAGLE_ENABLED`. |
 | `eagle/middleware.py` | Scopes tracking to a request; flushes warnings on response. |
-| `eagle/decorators.py` | `warn_unused` — scopes tracking around a single call (outside the request cycle). |
+| `eagle/decorators.py` | `warn_unused` — scopes tracking around a single call or `with` block (outside the request cycle). |
 | `eagle/sinks.py` | Public `mark_considered` / `may_access` escape hatches. |
 | `eagle/exceptions.py` | `EagleWarning` / `UnusedRelatedAccess` warning categories. |
 | `eagle/instrumentation/scope.py` | Decides which apps/models to instrument. |
