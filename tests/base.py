@@ -27,13 +27,8 @@ class EagleWithLocation:
 
 
 @pytest.mark.django_db
-class BaseRequestTest:
-    """Base for tests that drive the eagle detail endpoint; an unused eager load surfaces as an error."""
-
-    @pytest.fixture
-    def api_client(self) -> APIClient:
-        """Return a DRF test client for calling the eagle endpoints."""
-        return APIClient()
+class EagleGraphMixin:
+    """Supplies the ``eagle_graph`` fixture to any test class that eager-loads eagle relations."""
 
     @pytest.fixture
     def eagle_graph(self, db: None) -> EagleGraph:
@@ -47,6 +42,15 @@ class BaseRequestTest:
             eagle=eagle,
             eaglet=eaglet,
         )
+
+
+class BaseRequestTest(EagleGraphMixin):
+    """Base for tests that drive the eagle detail endpoint; an unused eager load surfaces as an error."""
+
+    @pytest.fixture
+    def api_client(self) -> APIClient:
+        """Return a DRF test client for calling the eagle endpoints."""
+        return APIClient()
 
 
 @pytest.mark.django_db

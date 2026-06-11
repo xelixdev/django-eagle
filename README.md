@@ -123,6 +123,33 @@ on <Eagle instance>. Queryset marked at /app/views.py:42.
 
 Fix it by dropping the unused `select_related` / `prefetch_related`, or tell eagle the access is legitimate (see below).
 
+### Outside the request cycle — `warn_unused`
+
+The middleware only scopes tracking around HTTP requests. To get the same detection for code that runs elsewhere — a management command, a Celery task, a cron job, or any plain function — use `warn_unused` as a decorator:
+
+```python
+from eagle import warn_unused
+
+@warn_unused
+def refresh_eagles():
+    # select_related("location") joins the location table...
+    for eagle in Eagle.objects.select_related("location"):
+        process(eagle.height)  # ...but location is never read.
+```
+
+Or scope a single block by using the same name as a context manager:
+
+```python
+from eagle import warn_unused
+
+with warn_unused():
+    # select_related("location") joins the location table...
+    for eagle in Eagle.objects.select_related("location"):
+        process(eagle.height)  # ...but location is never read.
+```
+
+`warn_unused` begins tracking before the scoped code runs and ends it on exit — exactly as the middleware does for a request — so the wasted join above emits the same `UnusedRelatedAccess` warning. Tracking always ends, even if the scoped code raises, so a failure never leaks tracking state onto the thread. The decorator form works on sync and async callables and preserves wrapper metadata (`__name__`, `__doc__`), and either form is a transparent passthrough when `EAGLE_ENABLED` is falsy.
+
 ## Suppressing false positives
 
 eagle spots access by intercepting Django's relation descriptors, which fire on ordinary attribute access — so template rendering, conditional reads, and Python-level serializers (including DRF) are all tracked while they run. A warning is still a false positive in the following cases:
@@ -213,6 +240,7 @@ Everything you need is exported from the top-level `eagle` package:
 | Name | Type | Purpose |
 | --- | --- | --- |
 | `EagleWarnUnusedMiddleware` | middleware | Scopes tracking per request; emits warnings on response. |
+| `warn_unused` | decorator / context manager | Scopes tracking around a function call or `with` block; emits warnings on exit. |
 | `mark_considered` | function | Imperatively mark relations as accessed. |
 | `may_access` | decorator | Mark relations as accessed on normal return. |
 | `UnusedRelatedAccess` | warning | Category emitted for an unused eager load. |
