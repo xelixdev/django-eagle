@@ -10,6 +10,9 @@ class LoadedRelation:
     location: str | None
 
 
+# Keyed by ``(model_label, cache_name)`` where ``model_label`` is ``model._meta.label``
+# (``app_label.ModelName``). Using the labelled form rather than the bare class name keeps
+# same-named models in different apps (e.g. ``billing.Comment`` vs ``blog.Comment``) distinct.
 RelationKey = tuple[str, str]
 
 
@@ -61,7 +64,7 @@ class Collector:
     @property
     def loaded(self) -> dict[RelationKey, LoadedRelation]:
         """
-        Relations eager-loaded during this request, keyed by ``(model_name, cache_name)``.
+        Relations eager-loaded during this request, keyed by ``(model_label, cache_name)``.
 
         Returns:
             The mutable map of loaded relations for the current context.

@@ -29,21 +29,24 @@ def end_request() -> None:
     if not collector.active:
         return
 
-    for (model_name, cache_name), relation in sorted(collector.loaded.items()):
-        key = (model_name, cache_name)
-
+    for key, relation in sorted(collector.loaded.items()):
         if key in collector.consumed:
             continue
+
+        model_label, cache_name = key
+        # Keys carry the full label (app_label.ModelName); ignore rules and warning messages
+        # speak in the bare class name, which is the segment after the final dot.
+        model_name = model_label.rsplit(".", 1)[-1]
 
         if should_ignore(
             model_name,
             cache_name,
             relation.location,
         ):
-            logger.debug("Ignoring %s, %s, %s", model_name, cache_name, relation.location)
+            logger.debug("Ignoring %s, %s, %s", model_label, cache_name, relation.location)
             continue
 
-        logger.debug("Found unused %s, %s, %s", model_name, cache_name, relation.location)
+        logger.debug("Found unused %s, %s, %s", model_label, cache_name, relation.location)
         _emit_unused_warning(
             model_name=model_name,
             cache_name=cache_name,
