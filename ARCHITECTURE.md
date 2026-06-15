@@ -121,7 +121,7 @@ reads of the cache are observable.
 `warn_unused` (`eagle/decorators.py`) does the same around a single function call or
 `with` block, for code that runs outside the request cycle. Both are thin wrappers over
 `begin_request()` / `end_request()`. Everything recorded in between lands in a
-thread-local `Collector`.
+context-local `Collector`.
 
 ![img_1.png](assets/architecture/lifecycle.png)
 
@@ -172,17 +172,27 @@ queryset-level one.
 
 ## The collector — per-request state
 
-All tracking state lives in a single thread-local `Collector` (`unused/state.py`):
+All tracking state lives in a `Collector` backed by a `contextvars.ContextVar`
+(`unused/state.py`):
 
 ```python
-class Collector(threading.local):
+# The ContextVar holds the active request's state; the Collector reads/writes through it.
+_state: ContextVar[_CollectorState]
+
+@dataclass
+class _CollectorState:
     active: bool                                  # is a request being tracked?
     loaded: dict[(model_name, cache_name), LoadedRelation]   # kind + call-site
     consumed: set[(model_name, cache_name)]       # relations that were accessed
 ```
 
-- **Thread-local** because Django serves each sync request on its own thread; per-thread
-  state keeps concurrent requests from contaminating each other.
+- **Context-local** (a `contextvars.ContextVar`) so concurrent
+  requests never contaminate each other. A `ContextVar` isolates per thread *and* per
+  asyncio task, covering both WSGI (each sync request on its own thread) and ASGI (many
+  requests multiplexed onto one event-loop thread, where a thread-local would let one
+  request's `begin_request()` wipe another's state mid-`await`). `begin_request()` /
+  `end_request()` bind a *fresh* state object rather than mutating in place, so a request
+  starting while another is suspended cannot clobber the suspended request's tracking.
 - **Keyed by `(model_name, cache_name)`** — model *name* (not class) and the ORM cache key
   for the relation. This is why `mark_considered` accepts a model name string.
 - **First write wins** for `loaded`, so the originally captured call-site survives repeated
