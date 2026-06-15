@@ -13,6 +13,7 @@ INSTALLED_APPS = [
     "eagle",
     "test_project",
     "excluded_app",
+    "collision_app",
 ]
 
 EAGLE_ENABLED = True
@@ -30,7 +31,7 @@ REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
 }
 
-MIGRATION_MODULES = {"test_project": None, "excluded_app": None}
+MIGRATION_MODULES = {"test_project": None, "excluded_app": None, "collision_app": None}
 
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 

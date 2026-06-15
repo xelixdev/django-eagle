@@ -2,6 +2,7 @@ from typing import Any
 
 import factory
 
+from collision_app.models import Eagle as CollisionEagle
 from excluded_app.models import Burrow
 from test_project.models import Climate, Eagle, Eaglet, Location
 
@@ -50,3 +51,10 @@ class BurrowFactory(factory.django.DjangoModelFactory):
 
     eagle = factory.SubFactory(EagleFactory)
     depth = 3
+
+
+class CollisionEagleFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = CollisionEagle
+
+    location = factory.SubFactory(LocationFactory)

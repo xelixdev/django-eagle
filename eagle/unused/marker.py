@@ -6,12 +6,12 @@ from eagle.logger import logger
 from eagle.unused.state import LoadedRelation, collector
 
 
-def _record_loaded(model_name: str, cache_name: str, kind: str, location: str | None) -> None:
+def _record_loaded(model_label: str, cache_name: str, kind: str, location: str | None) -> None:
     """
     Register a relation as loaded; first write wins so repeated loads don't overwrite the original location.
 
     Args:
-        model_name: Django model class name.
+        model_label: Django model label (``app_label.ModelName``).
         cache_name: ORM cache key for the relation (e.g. ``_author_cache``).
         kind: Relation type string, either ``"select_related"`` or ``"prefetch_related"``.
         location: Call-site string (``"file:line"``) captured when the queryset was built, or None.
@@ -20,7 +20,7 @@ def _record_loaded(model_name: str, cache_name: str, kind: str, location: str | 
         return
 
     collector.loaded.setdefault(
-        (model_name, cache_name),
+        (model_label, cache_name),
         LoadedRelation(
             kind=kind,
             location=location,
@@ -28,33 +28,33 @@ def _record_loaded(model_name: str, cache_name: str, kind: str, location: str | 
     )
 
 
-def _record_consumed(model_name: str, cache_name: str) -> None:
+def _record_consumed(model_label: str, cache_name: str) -> None:
     """
     Mark a relation key as consumed so it will not trigger an unused warning.
 
     Args:
-        model_name: Django model class name.
+        model_label: Django model label (``app_label.ModelName``).
         cache_name: ORM cache key for the relation.
     """
     if not collector.active:
-        logger.debug("Tried recording consumed %s, %s... but collector is not active.", model_name, cache_name)
+        logger.debug("Tried recording consumed %s, %s... but collector is not active.", model_label, cache_name)
         return
 
-    collector.consumed.add((model_name, cache_name))
-    logger.debug("Recorded consumed %s, %s.", model_name, cache_name)
+    collector.consumed.add((model_label, cache_name))
+    logger.debug("Recorded consumed %s, %s.", model_label, cache_name)
 
 
-def mark_considered_internal(model_name: str, *cache_names: str) -> None:
+def mark_considered_internal(model_label: str, *cache_names: str) -> None:
     """
-    Suppress warnings for *cache_names* on *model_name* without going through the public API.
+    Suppress warnings for *cache_names* on *model_label* without going through the public API.
 
     Args:
-        model_name: Django model class name.
+        model_label: Django model label (``app_label.ModelName``).
     """
     if not collector.active:
         return
 
-    collector.consumed.update((model_name, cache_name) for cache_name in cache_names)
+    collector.consumed.update((model_label, cache_name) for cache_name in cache_names)
 
 
 def init_state(instance: Model, location: str | None, locations: dict[str, str] | None = None) -> None:
@@ -111,7 +111,7 @@ def mark_select_related(instance: Model, cache_name: str) -> None:
         return
 
     _record_loaded(
-        model_name=instance.__class__.__name__,
+        model_label=instance._meta.label,
         cache_name=cache_name,
         kind="select_related",
         location=resolve_location(instance._state, cache_name),
@@ -139,7 +139,7 @@ def mark_prefetched(instances: Iterable[Model], cache_name: str | None) -> None:
             continue
 
         _record_loaded(
-            model_name=instance.__class__.__name__,
+            model_label=instance._meta.label,
             cache_name=cache_name,
             kind="prefetch_related",
             location=resolve_location(state, cache_name),
@@ -160,7 +160,7 @@ def mark_consumed(instance: Model, cache_name: str) -> None:
         return
 
     _record_consumed(
-        instance.__class__.__name__,
+        instance._meta.label,
         cache_name,
     )
     logger.debug("Marked consumed %s, %s.", instance.__class__.__name__, cache_name)

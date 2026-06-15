@@ -182,8 +182,8 @@ _state: ContextVar[_CollectorState]
 @dataclass
 class _CollectorState:
     active: bool                                  # is a request being tracked?
-    loaded: dict[(model_name, cache_name), LoadedRelation]   # kind + call-site
-    consumed: set[(model_name, cache_name)]       # relations that were accessed
+    loaded: dict[(model_label, cache_name), LoadedRelation]   # kind + call-site
+    consumed: set[(model_label, cache_name)]      # relations that were accessed
 ```
 
 - **Context-local** (a `contextvars.ContextVar`) so concurrent
@@ -193,8 +193,12 @@ class _CollectorState:
   request's `begin_request()` wipe another's state mid-`await`). `begin_request()` /
   `end_request()` bind a *fresh* state object rather than mutating in place, so a request
   starting while another is suspended cannot clobber the suspended request's tracking.
-- **Keyed by `(model_name, cache_name)`** — model *name* (not class) and the ORM cache key
-  for the relation. This is why `mark_considered` accepts a model name string.
+- **Keyed by `(model_label, cache_name)`** — the model's `_meta.label`
+  (`app_label.ModelName`) and the ORM cache key for the relation. The label, rather than the
+  bare class name, keeps same-named models in different apps (`billing.Comment` vs
+  `blog.Comment`) from colliding and masking each other's warnings. `mark_considered` resolves
+  its argument to this label, accepting a model class, an `app_label.ModelName` string, or a
+  bare class name (resolved via the app registry when unambiguous).
 - **First write wins** for `loaded`, so the originally captured call-site survives repeated
   loads.
 

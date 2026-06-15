@@ -160,7 +160,7 @@ Reach for one of these escape hatches:
 
 ### `mark_considered` — mark relations as accessed imperatively
 
-Call it with the model first (a class or its name string), followed by one or more relation cache names. Eagle then treats those relations as accessed for the rest of the current request:
+Call it with the model first, followed by one or more relation cache names. Eagle then treats those relations as accessed for the rest of the current request. The model can be a class, an `app_label.ModelName` label string, or a bare class name; pass the class or the label to disambiguate when two apps define a model with the same class name:
 
 ```python
 from eagle import mark_considered
