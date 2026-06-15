@@ -92,7 +92,7 @@ class _WarnUnusedScope:
         End tracking, emitting warnings for relations loaded but never accessed.
 
         Tracking ends even when the block raises, so a failing block never leaks
-        an active collector into later work on the same thread.
+        an active collector into later work in the same context.
 
         Args:
             exc_type: Exception type raised in the block, if any.
@@ -152,7 +152,7 @@ def warn_unused(fn: Callable[P, R] | None = None) -> Callable[P, R] | _WarnUnuse
             ...
 
     Tracking always ends even if the scoped code raises, so a failure never
-    leaks an active collector into later work on the same thread. When
+    leaks an active collector into later work in the same context. When
     ``EAGLE_ENABLED`` is falsy the scope is a transparent passthrough. The
     decorator forms work for both synchronous and asynchronous callables and
     preserve wrapper metadata (``__name__``, ``__doc__``).

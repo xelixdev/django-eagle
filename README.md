@@ -148,7 +148,7 @@ with warn_unused():
         process(eagle.height)  # ...but location is never read.
 ```
 
-`warn_unused` begins tracking before the scoped code runs and ends it on exit — exactly as the middleware does for a request — so the wasted join above emits the same `UnusedRelatedAccess` warning. Tracking always ends, even if the scoped code raises, so a failure never leaks tracking state onto the thread. The decorator form works on sync and async callables and preserves wrapper metadata (`__name__`, `__doc__`), and either form is a transparent passthrough when `EAGLE_ENABLED` is falsy.
+`warn_unused` begins tracking before the scoped code runs and ends it on exit — exactly as the middleware does for a request — so the wasted join above emits the same `UnusedRelatedAccess` warning. Tracking always ends, even if the scoped code raises, so a failure never leaks tracking state into later work in the same context. The decorator form works on sync and async callables and preserves wrapper metadata (`__name__`, `__doc__`), and either form is a transparent passthrough when `EAGLE_ENABLED` is falsy.
 
 ## Suppressing false positives
 
