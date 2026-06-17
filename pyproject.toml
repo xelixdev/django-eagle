@@ -1,9 +1,11 @@
 [build-system]
-requires = ["setuptools>=77"]
-build-backend = "setuptools.build_meta"
+requires = ["uv_build>=0.11,<0.12"]
+build-backend = "uv_build"
 
-[tool.setuptools.packages.find]
-include = ["eagle*"]
+[tool.uv.build-backend]
+# eagle/ lives at the repo root (flat layout), not under src/.
+module-name = "eagle"
+module-root = ""
 
 [project]
 name = "django-eagle"
@@ -41,6 +43,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Software Development :: Quality Assurance",
 ]
