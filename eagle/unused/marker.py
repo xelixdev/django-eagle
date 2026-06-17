@@ -19,13 +19,11 @@ def _record_loaded(model_label: str, cache_name: str, kind: str, location: str |
     if not collector.active:
         return
 
-    collector.loaded.setdefault(
-        (model_label, cache_name),
-        LoadedRelation(
-            kind=kind,
-            location=location,
-        ),
-    )
+    key = (model_label, cache_name)
+    collector.loaded.setdefault(key, LoadedRelation(kind=kind, location=location))
+    # Count every load, not just the first: ``loaded`` is first-write-wins, so the fan-out
+    # (how many instances carried this relation) is tracked here instead of inferred from it.
+    collector.loaded_counts[key] = collector.loaded_counts.get(key, 0) + 1
 
 
 def _record_consumed(model_label: str, cache_name: str) -> None:

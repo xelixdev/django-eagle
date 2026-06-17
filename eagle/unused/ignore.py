@@ -29,18 +29,27 @@ def _rule_matches(rule: Mapping[str, str], model_name: str, field_name: str, loc
     return True
 
 
-def should_ignore(model_name: str, field_name: str, location: str | None) -> bool:
+def should_ignore(
+    model_name: str,
+    field_name: str,
+    location: str | None,
+    rules: list[Mapping[str, str]] | None = None,
+) -> bool:
     """
-    Return True if any EAGLE_WARN_UNUSED_IGNORE rule suppresses this warning.
+    Return True if any ignore rule suppresses this relation.
 
     Args:
         model_name: Django model class name of the instance that loaded the relation.
         field_name: Relation cache key that was loaded but not consumed.
         location: Call-site string (``"file:line"``) recorded when the queryset was built, or None.
+        rules: The ignore rules to match against. Defaults to ``EAGLE_WARN_UNUSED_IGNORE`` when
+            None, so warning callers are unaffected; the Debug Toolbar panel passes its own
+            ``EAGLE_DEBUG_TOOLBAR_IGNORE`` list to filter the panel independently of warnings.
 
     Returns:
-        True if at least one configured rule matches all provided values.
+        True if at least one rule matches all provided values.
     """
-    rules: list[Mapping[str, str]] = getattr(settings, "EAGLE_WARN_UNUSED_IGNORE", [])
+    if rules is None:
+        rules = getattr(settings, "EAGLE_WARN_UNUSED_IGNORE", [])
 
     return any(_rule_matches(rule, model_name, field_name, location) for rule in rules)

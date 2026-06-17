@@ -23,6 +23,10 @@ class _CollectorState:
     active: bool = False
     loaded: dict[RelationKey, LoadedRelation] = field(default_factory=dict)
     consumed: set[RelationKey] = field(default_factory=set)
+    # How many instances carried each loaded relation (the fan-out): per-row for
+    # select_related, per-parent for prefetch_related. Tracked separately from ``loaded``
+    # because that map is first-write-wins, so it cannot also count repeated loads.
+    loaded_counts: dict[RelationKey, int] = field(default_factory=dict)
 
 
 # Holds the active request's state.
@@ -80,6 +84,16 @@ class Collector:
             The mutable set of consumed relation keys for the current context.
         """
         return self._current().consumed
+
+    @property
+    def loaded_counts(self) -> dict[RelationKey, int]:
+        """
+        Per-relation instance counts (fan-out) for this request, keyed by ``(model_label, cache_name)``.
+
+        Returns:
+            The mutable map of load counts for the current context.
+        """
+        return self._current().loaded_counts
 
     def start(self) -> None:
         """

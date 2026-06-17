@@ -5,6 +5,11 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 include = ["eagle*"]
 
+# Ship non-Python files (the Debug Toolbar panel template) inside the wheel/sdist;
+# packages.find only collects Python modules, so data files must be listed explicitly.
+[tool.setuptools.package-data]
+eagle = ["templates/**/*.html"]
+
 [project]
 name = "django-eagle"
 version = "0.1.0"
@@ -17,8 +22,13 @@ dependencies = [
     "django>=5.2",
 ]
 
+[project.optional-dependencies]
+# The Debug Toolbar panel is opt-in; DDT never becomes a core dependency.
+debug-toolbar = ["django-debug-toolbar>=4.0"]
+
 [dependency-groups]
 dev = [
+    "django-debug-toolbar>=4.0",
     "djangorestframework>=3.16.0",
     "factory-boy>=3.3.0",
     "pyrefly>=1.0.0",

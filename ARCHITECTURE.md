@@ -60,6 +60,12 @@ Eagle only instruments code you own, so warnings only point at relations you can
   models libraries shipped as packages).
 - **`EAGLE_EXCLUDE_APPS`** — overrides both; a listed app is never instrumented.
 
+The Debug Toolbar can opt back into the excluded apps: with
+`EAGLE_DEBUG_TOOLBAR_INCLUDE_EXCLUDED_APPS = True`, `AppConfig.ready` also instruments
+`get_excluded_models()` and registers their labels as *warn-suppressed* (via
+`register_warn_suppressed_labels`), so those apps are tracked and shown in the panel but
+never emit warnings — letting a migrating project see excluded-app waste without failing tests.
+
 Proxy models are skipped (they share the concrete model's descriptors). The resulting
 model classes are stored in a module-level set by `register_tracked_models`; the rest of
 eagle calls `is_instrumented(model)` to decide whether to record anything for a given
@@ -184,6 +190,7 @@ class _CollectorState:
     active: bool                                  # is a request being tracked?
     loaded: dict[(model_label, cache_name), LoadedRelation]   # kind + call-site
     consumed: set[(model_label, cache_name)]      # relations that were accessed
+    loaded_counts: dict[(model_label, cache_name), int]       # how many instances carried each load
 ```
 
 - **Context-local** (a `contextvars.ContextVar`) so concurrent
@@ -201,13 +208,20 @@ class _CollectorState:
   bare class name (resolved via the app registry when unambiguous).
 - **First write wins** for `loaded`, so the originally captured call-site survives repeated
   loads.
+- **Counts live separately** in `loaded_counts`: because `loaded` is first-write-wins it cannot
+  also tally repeated loads, so each `_record_loaded` call increments a per-relation counter
+  (per-row for `select_related`, per-parent for `prefetch_related`). This fan-out feeds the
+  Debug Toolbar panel's cost estimates.
 
 `begin_request()` resets and activates it; `end_request()` reconciles and deactivates it.
 
 ## Emitting warnings
 
-`end_request()` (`unused/tracker.py`) reconciles the two sets and emits one warning per
-surviving relation:
+`end_request()` (`unused/tracker.py`) reconciles the two sets via `collect_all_unused()`
+(`unused/report.py`), which returns one structured `UnusedRelation` record per loaded-but-unread
+relation, each tagged with `warn_ignored` (whether `EAGLE_WARN_UNUSED_IGNORE` suppresses it);
+`end_request` emits one warning per record that is *not* `warn_ignored` (`collect_unused()` is
+the same set already narrowed to that warning view):
 
 ![emit_warnings.png](assets/architecture/emit_warnings.png)
 
@@ -219,6 +233,22 @@ The warning is a real Python `warnings.warn` with category `UnusedRelatedAccess`
 subclass of `EagleWarning`), so you can route, filter, or escalate it with the standard
 `warnings` machinery and pytest's `filterwarnings`.
 
+### Stashing the report for later readers
+
+Before it stops the collector, `end_request` stashes the **full** report (every
+loaded-but-unread relation, including the `warn_ignored` ones) in a context-local
+(`_last_report`, read back via `get_last_report()`). `collector.stop()` then installs a fresh
+empty state, so by the time later code runs the live collector is gone -- but the stash
+survives. This is what lets the optional [Debug Toolbar panel](README.md#django-debug-toolbar-panel)
+read a request's unused loads in its `generate_stats`, *after* the whole middleware stack
+(including eagle's own middleware) has finished, regardless of middleware ordering. When the
+panel instead runs while the collector is still live, it calls `collect_all_unused()` directly.
+
+Stashing the full set (rather than just the warning view) is deliberate: the panel shows a
+*different* slice than the warnings. Warnings are `loaded − consumed − EAGLE_WARN_UNUSED_IGNORE`;
+the panel is `loaded − consumed − EAGLE_DEBUG_TOOLBAR_IGNORE`, so warning-suppressed loads stay
+visible in the panel (flagged via `warn_ignored`) while a project migrates them off.
+
 ## Module map
 
 ![module_map.png](assets/architecture/module_map.png)
@@ -226,18 +256,20 @@ subclass of `EagleWarning`), so you can route, filter, or escalate it with the s
 | Module | Responsibility |
 | --- | --- |
 | `eagle/apps.py` | Startup entrypoint (`AppConfig.ready`); wires everything together. |
-| `eagle/config.py` | `is_enabled()` — reads `EAGLE_ENABLED`. |
+| `eagle/config.py` | `is_enabled()` (reads `EAGLE_ENABLED`) and `include_excluded_apps_in_toolbar()` (reads `EAGLE_DEBUG_TOOLBAR_INCLUDE_EXCLUDED_APPS`). |
 | `eagle/middleware.py` | Scopes tracking to a request; flushes warnings on response. |
 | `eagle/decorators.py` | `warn_unused` — scopes tracking around a single call or `with` block (outside the request cycle). |
 | `eagle/sinks.py` | Public `mark_considered` / `may_access` escape hatches. |
 | `eagle/exceptions.py` | `EagleWarning` / `UnusedRelatedAccess` warning categories. |
-| `eagle/instrumentation/scope.py` | Decides which apps/models to instrument. |
+| `eagle/instrumentation/scope.py` | Decides which apps/models to instrument (`get_first_party_models`); `get_excluded_models` yields the `EAGLE_EXCLUDE_APPS` models for optional toolbar-only profiling. |
 | `eagle/instrumentation/registry.py` | Set of instrumented model classes. |
 | `eagle/instrumentation/descriptors.py` | In-place descriptor swaps + tracking mixins. |
 | `eagle/instrumentation/models.py` | Applies descriptor patches across a model's fields. |
 | `eagle/instrumentation/query.py` | Patches `QuerySet`/`ModelIterable`/`prefetch_one_level`. |
 | `eagle/unused/state.py` | Thread-local `Collector` holding `loaded` / `consumed`. |
 | `eagle/unused/marker.py` | Records loaded/consumed and per-instance state. |
-| `eagle/unused/tracker.py` | `begin_request` / `end_request`; emits warnings. |
+| `eagle/unused/tracker.py` | `begin_request` / `end_request`; emits warnings and stashes the report. |
+| `eagle/unused/report.py` | `collect_all_unused` builds the full `UnusedRelation` report (each tagged `warn_ignored`); `collect_unused` is the warning view; `_last_report` / `get_last_report` stash the full report for post-response readers. |
 | `eagle/unused/location.py` | Captures the user's call-site for a queryset. |
-| `eagle/unused/ignore.py` | Applies `EAGLE_WARN_UNUSED_IGNORE` rules. |
+| `eagle/unused/ignore.py` | Matches ignore rules; drives both the warning list `EAGLE_WARN_UNUSED_IGNORE` and the panel's `EAGLE_DEBUG_TOOLBAR_IGNORE`. |
+| `eagle/panels.py` | Optional Django Debug Toolbar panel (`EagleUnusedLoadsPanel`): lists unused loads (including warning-suppressed, flagged) with heuristic cost estimates; filtered by `EAGLE_DEBUG_TOOLBAR_IGNORE`. |

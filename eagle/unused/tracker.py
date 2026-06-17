@@ -2,8 +2,8 @@ import warnings
 
 from eagle.exceptions import UnusedRelatedAccess
 from eagle.logger import logger
-from eagle.unused.ignore import should_ignore
-from eagle.unused.state import LoadedRelation, collector
+from eagle.unused.report import UnusedRelation, collect_all_unused, set_last_report
+from eagle.unused.state import collector
 
 
 def is_active() -> bool:
@@ -23,52 +23,41 @@ def begin_request() -> None:
 
 
 def end_request() -> None:
-    """Emit warnings for all loaded-but-not-consumed relations, then deactivate the collector."""
+    """Emit warnings for all loaded-but-not-consumed relations, stash the report, then deactivate the collector."""
     logger.debug("End request.")
 
     if not collector.active:
         return
 
-    for key, relation in sorted(collector.loaded.items()):
-        if key in collector.consumed:
+    report = collect_all_unused()
+    for relation in report:
+        # Warning-suppressed relations stay in the stashed report (so the panel can show them)
+        # but never warn -- this is what keeps ``EAGLE_WARN_UNUSED_IGNORE`` behaviour intact.
+        if relation.warn_ignored:
             continue
+        logger.debug("Found unused %s, %s, %s", relation.model_label, relation.cache_name, relation.location)
+        _emit_unused_warning(relation)
 
-        model_label, cache_name = key
-        # Keys carry the full label (app_label.ModelName); ignore rules and warning messages
-        # speak in the bare class name, which is the segment after the final dot.
-        model_name = model_label.rsplit(".", 1)[-1]
-
-        if should_ignore(
-            model_name,
-            cache_name,
-            relation.location,
-        ):
-            logger.debug("Ignoring %s, %s, %s", model_label, cache_name, relation.location)
-            continue
-
-        logger.debug("Found unused %s, %s, %s", model_label, cache_name, relation.location)
-        _emit_unused_warning(
-            model_name=model_name,
-            cache_name=cache_name,
-            relation=relation,
-        )
-
+    # Stash the full report before stopping: ``collector.stop()`` installs a fresh empty state,
+    # so a panel reading after the middleware has finished relies on this snapshot rather than
+    # the live collector (which is empty by then).
+    set_last_report(report)
     collector.stop()
 
 
-def _emit_unused_warning(*, model_name: str, cache_name: str, relation: LoadedRelation) -> None:
+def _emit_unused_warning(relation: UnusedRelation) -> None:
     """
     Emit a single UnusedRelatedAccess warning with a descriptive message.
 
     Args:
-        model_name: Django model class name where the relation was loaded.
-        cache_name: ORM cache key for the relation.
-        relation: Snapshot of the loaded relation including kind and call-site location.
+        relation: The loaded-but-not-consumed relation to warn about, carrying its kind,
+            cache name, model name, and call-site location.
     """
     location_suffix = f" Queryset marked at {relation.location}." if relation.location else ""
 
     warnings.warn(
-        f'{relation.kind}("{cache_name}") was loaded but never accessed on <{model_name} instance>.{location_suffix}',
+        f'{relation.kind}("{relation.cache_name}") was loaded but never accessed on '
+        f"<{relation.model_name} instance>.{location_suffix}",
         category=UnusedRelatedAccess,
         stacklevel=2,
     )
