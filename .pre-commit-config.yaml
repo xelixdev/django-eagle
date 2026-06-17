@@ -11,7 +11,7 @@ repos:
   rev: "1.0.0"
   hooks:
   - id: pyrefly-check
-    additional_dependencies: ["django>=5.2"]
+    additional_dependencies: ["django>=5.2", "django-debug-toolbar>=4.0"]
 - repo: https://github.com/adamchainz/django-upgrade
   rev: "1.30.0"
   hooks:

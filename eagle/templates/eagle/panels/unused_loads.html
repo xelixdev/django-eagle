@@ -1,0 +1,44 @@
+{% load i18n %}
+{% if not enabled %}
+  <p>{% blocktranslate %}eagle is disabled (<code>EAGLE_ENABLED</code> is falsy), so no eager loads were tracked for this request.{% endblocktranslate %}</p>
+{% elif count == 0 %}
+  <p>{% translate "No unused eager loads 🎉" %}</p>
+{% else %}
+  <h4>
+    {% blocktranslate count counter=count %}{{ counter }} unused eager load{% plural %}{{ counter }} unused eager loads{% endblocktranslate %}
+    &mdash; {{ by_kind.select_related }} select_related, {{ by_kind.prefetch_related }} prefetch_related
+  </h4>
+  {% if suppressed %}
+    <p>{% blocktranslate count counter=suppressed %}{{ counter }} of these is currently warning-suppressed by <code>EAGLE_WARN_UNUSED_IGNORE</code> &mdash; still wasteful, not yet migrated.{% plural %}{{ counter }} of these are currently warning-suppressed by <code>EAGLE_WARN_UNUSED_IGNORE</code> &mdash; still wasteful, not yet migrated.{% endblocktranslate %}</p>
+  {% endif %}
+  <p>
+    {% blocktranslate with joins=estimated.extra_joins queries=estimated.extra_queries cells=estimated.wasted_cells %}Estimated waste avoidable by pruning these loads: {{ joins }} JOIN(s), {{ queries }} extra query(ies), ~{{ cells }} wasted cells.{% endblocktranslate %}
+    <em>{% translate "These are heuristic estimates, not measured time or memory." %}</em>
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th>{% translate "Model" %}</th>
+        <th>{% translate "Relation" %}</th>
+        <th>{% translate "Kind" %}</th>
+        <th>{% translate "Instances" %}</th>
+        <th>{% translate "Estimate" %}</th>
+        <th>{% translate "Status" %}</th>
+        <th>{% translate "Location" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in relations %}
+        <tr>
+          <td>{{ row.model }}</td>
+          <td><code>{{ row.field }}</code></td>
+          <td>{{ row.kind }}</td>
+          <td>{{ row.instances }}</td>
+          <td>{{ row.estimate }}</td>
+          <td>{% if row.warn_ignored %}⚠ {% translate "suppressed" %}{% else %}{% translate "active" %}{% endif %}</td>
+          <td>{{ row.location|default:"—" }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endif %}

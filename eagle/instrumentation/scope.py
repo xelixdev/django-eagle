@@ -67,14 +67,16 @@ def _matched_include_package(app_config: AppConfig, packages: tuple[str, ...]) -
     return None
 
 
-def get_first_party_models() -> Iterator[type[Model]]:
+def _iter_candidate_models() -> Iterator[tuple[type[Model], bool]]:
     """
-    Yield all non-proxy models from first-party and explicitly included third-party apps.
+    Yield ``(model, is_excluded)`` for every non-proxy model Eagle could instrument.
 
-    Respects EAGLE_EXCLUDE_APPS to omit specific apps from instrumentation.
+    A model is a candidate when its app is first-party or matches
+    ``EAGLE_THIRD_PARTY_INCLUDE_APPS``; ``is_excluded`` reflects whether
+    ``EAGLE_EXCLUDE_APPS`` would normally drop it from instrumentation.
 
     Yields:
-        Django model classes eligible for Eagle tracking.
+        ``(model, is_excluded)`` pairs for each candidate model.
     """
     roots = _dependency_roots()
     excluded = set(getattr(settings, "EAGLE_EXCLUDE_APPS", ()))
@@ -85,9 +87,38 @@ def get_first_party_models() -> Iterator[type[Model]]:
         if not first_party and include_package is None:
             continue
         exclusion_key = app_config.label if first_party else f"{include_package}.{app_config.label}"
-        if exclusion_key in excluded:
-            continue
+        is_excluded = exclusion_key in excluded
         for model in app_config.get_models():
             if model._meta.proxy:
                 continue
+            yield model, is_excluded
+
+
+def get_first_party_models() -> Iterator[type[Model]]:
+    """
+    Yield all non-proxy models from first-party and explicitly included third-party apps.
+
+    Respects EAGLE_EXCLUDE_APPS to omit specific apps from instrumentation.
+
+    Yields:
+        Django model classes eligible for Eagle tracking.
+    """
+    for model, is_excluded in _iter_candidate_models():
+        if not is_excluded:
+            yield model
+
+
+def get_excluded_models() -> Iterator[type[Model]]:
+    """
+    Yield the non-proxy candidate models that EAGLE_EXCLUDE_APPS omits from instrumentation.
+
+    These are normally skipped entirely. The Debug Toolbar can opt to instrument them anyway --
+    without ever emitting warnings -- via ``EAGLE_DEBUG_TOOLBAR_INCLUDE_EXCLUDED_APPS``, so a
+    migrating project can still see what eager loads its excluded apps waste.
+
+    Yields:
+        Django model classes from candidate apps that ``EAGLE_EXCLUDE_APPS`` excludes.
+    """
+    for model, is_excluded in _iter_candidate_models():
+        if is_excluded:
             yield model

@@ -4,7 +4,7 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 
 from eagle import UnusedRelatedAccess
-from eagle.config import is_enabled
+from eagle.config import include_excluded_apps_in_toolbar, is_enabled
 from tests.base import BaseRequestTest, EagleGraph
 
 
@@ -20,6 +20,15 @@ class TestEnabledDefault:
     @override_settings(EAGLE_ENABLED=True)
     def test_enabled_when_setting_true(self):
         assert is_enabled() is True
+
+
+class TestIncludeExcludedAppsInToolbar:
+    def test_false_by_default(self):
+        assert include_excluded_apps_in_toolbar() is False
+
+    @override_settings(EAGLE_DEBUG_TOOLBAR_INCLUDE_EXCLUDED_APPS=True)
+    def test_true_when_set(self):
+        assert include_excluded_apps_in_toolbar() is True
 
 
 class TestDisabledRequest(BaseRequestTest):

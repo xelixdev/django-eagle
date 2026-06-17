@@ -150,6 +150,69 @@ with warn_unused():
 
 `warn_unused` begins tracking before the scoped code runs and ends it on exit — exactly as the middleware does for a request — so the wasted join above emits the same `UnusedRelatedAccess` warning. Tracking always ends, even if the scoped code raises, so a failure never leaks tracking state into later work in the same context. The decorator form works on sync and async callables and preserves wrapper metadata (`__name__`, `__doc__`), and either form is a transparent passthrough when `EAGLE_ENABLED` is falsy.
 
+## Django Debug Toolbar panel
+
+If you use [Django Debug Toolbar](https://django-debug-toolbar.readthedocs.io/), eagle ships an optional **Unused Eager Loads** panel that surfaces the same signal as an interactive panel rather than (or alongside) warnings.
+
+### Install
+
+```bash
+pip install "django-eagle[debug-toolbar]"
+```
+
+### Configure
+
+Add the panel to `DEBUG_TOOLBAR_PANELS`, alongside the toolbar's own panels:
+
+```python
+DEBUG_TOOLBAR_PANELS = [
+    # ...the toolbar's default panels...
+    "eagle.panels.EagleUnusedLoadsPanel",
+]
+```
+
+### What it shows
+
+For each request the panel lists every relation that was eager-loaded but never accessed -- the same `(model, relation)` signal eagle warns about -- with:
+
+- the **count** of unused loads (shown in the toolbar side bar, e.g. `3 unused`);
+- each relation's **model, field, kind, and call site** (`file:line`);
+- a per-row **cost estimate** -- `select_related` shows `1 JOIN · ~<rows>×<cols> cells`, `prefetch_related` shows `1 query · <parents> parents`;
+- a header summary of the total estimated JOINs, extra queries, and wasted cells you would avoid by pruning the loads.
+
+> **These figures are heuristics, not measurements.** "Cells" is rows × extra columns of materialised-but-unused data; eagle does not measure query wall-clock time or bytes of memory. Use them to rank which loads are worth pruning, not as a profiler.
+
+The panel works whether or not `EagleWarnUnusedMiddleware` is installed, and regardless of its order relative to the toolbar's middleware. When `EAGLE_ENABLED` is falsy it renders a short "eagle is disabled" message.
+
+### Showing loads you've silenced — `EAGLE_DEBUG_TOOLBAR_IGNORE`
+
+The panel deliberately shows unused loads **even when they're silenced by `EAGLE_WARN_UNUSED_IGNORE`**. Those rows are flagged with a `⚠ suppressed` status and counted in the header (e.g. `12 unused · 8 currently warning-suppressed`). This makes the panel a migration tracker: the warning ignore list keeps your test suite green while you migrate modules off wasteful eager loads, and the panel still shows you everything that's left to do.
+
+To hide noise from the panel only — without touching warnings — use the separate `EAGLE_DEBUG_TOOLBAR_IGNORE` list. It has the same rule shape as `EAGLE_WARN_UNUSED_IGNORE` and defaults to empty (the panel shows everything):
+
+```python
+EAGLE_DEBUG_TOOLBAR_IGNORE = [
+    {"model": "Eagle", "field": "location"},   # hide this one row from the panel
+    {"location": "*/vendor/*"},                # hide everything built under these modules
+]
+```
+
+The two lists are independent: `EAGLE_WARN_UNUSED_IGNORE` controls *warnings* (and so test failures), while `EAGLE_DEBUG_TOOLBAR_IGNORE` controls only what the *panel* displays.
+
+### Profiling excluded apps — `EAGLE_DEBUG_TOOLBAR_INCLUDE_EXCLUDED_APPS`
+
+Apps listed in `EAGLE_EXCLUDE_APPS` are normally skipped entirely — never instrumented, so they neither warn nor appear in the panel. That's ideal while you migrate a large codebase app-by-app, but it also hides how much those excluded apps still waste.
+
+Set this flag to have the toolbar profile them anyway:
+
+```python
+EAGLE_DEBUG_TOOLBAR_INCLUDE_EXCLUDED_APPS = True
+```
+
+With it on, excluded apps are instrumented and their unused eager loads show up in the panel, flagged `⚠ suppressed` — but they **never emit warnings**, so an excluded app still can't fail your test suite. This turns the panel into a full migration backlog: every wasteful load, even in the apps you haven't migrated yet, while warnings stay scoped to the apps you've already adopted.
+
+It defaults to `False`. Turning it on instruments more models (a one-off startup cost), but like everything else in eagle it only does anything when `EAGLE_ENABLED` is on — i.e. dev/CI — so there's no production cost.
+
 ## Suppressing false positives
 
 eagle spots access by intercepting Django's relation descriptors, which fire on ordinary attribute access — so template rendering, conditional reads, and Python-level serializers (including DRF) are all tracked while they run. A warning is still a false positive in the following cases:

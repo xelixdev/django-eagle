@@ -2,6 +2,7 @@ from django.contrib.auth.models import Group
 from django.test import override_settings
 
 from eagle.instrumentation import scope
+from excluded_app.models import Burrow
 from test_project.models import Eagle
 
 
@@ -36,3 +37,20 @@ class TestScope:
     )
     def test_bare_label_does_not_exclude_third_party(self):
         assert Group in self._instrumented_models()
+
+    def _excluded_models(self) -> set:
+        return set(scope.get_excluded_models())
+
+    def test_excluded_app_model_yielded_by_get_excluded_models(self):
+        # excluded_app is in EAGLE_EXCLUDE_APPS (test settings), so its model is a candidate
+        # for toolbar-only profiling -- excluded from warnings, available to the panel.
+        assert Burrow in self._excluded_models()
+        assert Burrow not in self._instrumented_models()
+
+    @override_settings(EAGLE_EXCLUDE_APPS=["test_project"])
+    def test_excluded_first_party_app_moves_to_excluded_set(self):
+        assert Eagle in self._excluded_models()
+        assert Eagle not in self._instrumented_models()
+
+    def test_excluded_set_omits_non_excluded_apps(self):
+        assert Eagle not in self._excluded_models()
