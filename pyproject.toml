@@ -1,9 +1,11 @@
 [build-system]
-requires = ["setuptools>=77"]
-build-backend = "setuptools.build_meta"
+requires = ["uv_build>=0.11,<0.12"]
+build-backend = "uv_build"
 
-[tool.setuptools.packages.find]
-include = ["eagle*"]
+[tool.uv.build-backend]
+# eagle/ lives at the repo root (flat layout), not under src/.
+module-name = "eagle"
+module-root = ""
 
 [project]
 name = "django-eagle"
@@ -13,9 +15,46 @@ readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.10"
+authors = [
+    { name = "Xelix" },
+    { name = "Cameron Hobbs", email = "cameron.hobbs@xelix.com" },
+]
+keywords = [
+    "django",
+    "orm",
+    "performance",
+    "select_related",
+    "prefetch_related",
+    "n+1",
+    "eager-loading",
+    "query-optimization",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Web Environment",
+    "Framework :: Django",
+    "Framework :: Django :: 5.2",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Software Development :: Quality Assurance",
+]
 dependencies = [
     "django>=5.2",
 ]
+
+[project.urls]
+Homepage = "https://github.com/xelixdev/django-eagle"
+Repository = "https://github.com/xelixdev/django-eagle"
+Issues = "https://github.com/xelixdev/django-eagle/issues"
 
 [dependency-groups]
 dev = [

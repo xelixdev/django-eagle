@@ -32,6 +32,24 @@ def _run_async_and_capture(make_coro: Callable[[], Coroutine[Any, Any, None]]) -
     return [w for w in caught if issubclass(w.category, UnusedRelatedAccess)]
 
 
+def _close_context_connection() -> None:
+    """
+    Force-close the database connection bound to the current thread or asyncio task.
+
+    Each interleaved request below runs in its own thread or task, and Django's
+    context-aware registry hands each one a separate connection to the shared in-memory
+    test database. ``connections.close_all()`` cannot reclaim those: the SQLite backend
+    makes ``close()`` a no-op for in-memory databases (closing the last handle would
+    destroy the data), so the extra connections would otherwise be finalized while still
+    open and raise ``ResourceWarning``. Closing the driver connection directly is safe
+    because the test's own connection keeps the shared in-memory database alive.
+    """
+    connection = connections["default"]
+    if connection.connection is not None:
+        connection.connection.close()
+        connection.connection = None
+
+
 @pytest.mark.django_db(transaction=True)
 class TestAsyncRequestIsolation:
     """
@@ -75,7 +93,7 @@ class TestAsyncRequestIsolation:
                     # Exiting here ends A's request while B's relation is still unconsumed.
                     a_finished.set()
                 finally:
-                    connections.close_all()
+                    _close_context_connection()
 
             async def request_b() -> None:
                 try:
@@ -86,7 +104,7 @@ class TestAsyncRequestIsolation:
                         await a_finished.wait()  # Let A end first, with B's load outstanding.
                         _ = eagle.location  # B reads its relation after A has ended.
                 finally:
-                    connections.close_all()
+                    _close_context_connection()
 
             await asyncio.gather(request_a(), request_b())
 
@@ -110,7 +128,7 @@ class TestAsyncRequestIsolation:
                         _ = eagle.location  # A reads its relation, so A must not warn.
                     a_finished.set()
                 finally:
-                    connections.close_all()
+                    _close_context_connection()
 
             async def request_b() -> None:
                 try:
@@ -121,7 +139,7 @@ class TestAsyncRequestIsolation:
                         await a_finished.wait()  # A runs (and resets a shared collector) before B ends.
                     # Exiting here ends B's request; its unused load must still be reported.
                 finally:
-                    connections.close_all()
+                    _close_context_connection()
 
             await asyncio.gather(request_a(), request_b())
 
@@ -157,7 +175,7 @@ class TestThreadRequestIsolation:
                         _ = loaded.location  # Accessed, so thread A must not warn.
                     a_finished.set()
                 finally:
-                    connections.close_all()
+                    _close_context_connection()
 
             def request_b() -> None:
                 try:
@@ -167,7 +185,7 @@ class TestThreadRequestIsolation:
                         b_loaded.set()
                         a_finished.wait()  # A's scope overlaps B's before B ends.
                 finally:
-                    connections.close_all()
+                    _close_context_connection()
 
             thread_a = threading.Thread(target=request_a)
             thread_b = threading.Thread(target=request_b)
