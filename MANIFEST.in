@@ -1,0 +1,4 @@
+# Keep the test suite out of the sdist. setuptools' sdist default file sweep
+# pulls in tests/ even though packages.find limits the importable packages to
+# eagle*, so the wheel stays clean but the sdist needs an explicit prune.
+prune tests
