@@ -12,6 +12,8 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     env:
       UV_PYTHON: "3.10"
     steps:
@@ -34,8 +36,14 @@ jobs:
       - name: Test
         run: uv run pytest -q --cov --cov-report=xml --cov-report=term-missing
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
-        with:
-          files: coverage.xml
-          fail_ci_if_error: false
+      - name: Generate coverage badge
+        run: uv run genbadge coverage -i coverage.xml -o assets/coverage.svg
+
+      - name: Commit coverage badge
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add assets/coverage.svg
+          git diff --staged --quiet || git commit -m "chore: update coverage badge"
+          git push
