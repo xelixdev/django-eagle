@@ -4,8 +4,17 @@ import pytest
 from rest_framework.test import APIClient
 
 from eagle import unused
-from test_project.models import Climate, Eagle, Eaglet, Location
-from tests.factories import ClimateFactory, EagleFactory, EagletFactory, LocationFactory
+from excluded_app.models import Burrow
+from test_project.models import Aerie, Climate, Eagle, Eaglet, Location, Sighting
+from tests.factories import (
+    AerieFactory,
+    BurrowFactory,
+    ClimateFactory,
+    EagleFactory,
+    EagletFactory,
+    LocationFactory,
+    SightingFactory,
+)
 
 
 @dataclass(frozen=True)
@@ -51,6 +60,43 @@ class BaseRequestTest(EagleGraphMixin):
     def api_client(self) -> APIClient:
         """Return a DRF test client for calling the eagle endpoints."""
         return APIClient()
+
+
+@pytest.mark.django_db
+class EagleFixtureMixin:
+    """Supplies a plain ``eagle`` fixture to any test class that needs a single tracked instance."""
+
+    @pytest.fixture
+    def eagle(self) -> Eagle:
+        """Create a single eagle via the default factory."""
+        return EagleFactory()
+
+
+class AerieFixtureMixin(EagleFixtureMixin):
+    """Supplies an ``aerie`` fixture: a non-nullable forward one-to-one owned by the eagle fixture."""
+
+    @pytest.fixture
+    def aerie(self, eagle: Eagle) -> Aerie:
+        """Create an Aerie whose forward one-to-one points at the eagle fixture."""
+        return AerieFactory(eagle=eagle)
+
+
+class BurrowFixtureMixin(EagleFixtureMixin):
+    """Supplies a ``burrow`` fixture: a reverse one-to-one from excluded_app, owned by the eagle fixture."""
+
+    @pytest.fixture
+    def burrow(self, eagle: Eagle) -> Burrow:
+        """Create a Burrow (an excluded_app model) whose one-to-one points at the eagle fixture."""
+        return BurrowFactory(eagle=eagle)
+
+
+class SightingFixtureMixin(EagleFixtureMixin):
+    """Supplies a ``sighting`` fixture: a GenericForeignKey pointing at the eagle fixture."""
+
+    @pytest.fixture
+    def sighting(self, eagle: Eagle) -> Sighting:
+        """Create a Sighting whose content_object GenericForeignKey resolves to the eagle fixture."""
+        return SightingFactory(content_object=eagle)
 
 
 @pytest.mark.django_db
