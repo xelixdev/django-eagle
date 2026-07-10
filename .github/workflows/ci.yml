@@ -47,7 +47,9 @@ jobs:
         run: uv run coverage xml
 
       - name: Generate coverage badge
-        run: uv run genbadge coverage -i coverage.xml -o assets/coverage.svg
+        run: |
+          uv run genbadge coverage -i coverage.xml -o assets/coverage.svg
+          [ -z "$(tail -c1 assets/coverage.svg)" ] || printf '\n' >> assets/coverage.svg
 
       - name: Commit coverage badge
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'

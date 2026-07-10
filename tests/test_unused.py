@@ -3,6 +3,7 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 
 from eagle import UnusedRelatedAccess, unused, warn_unused
+from excluded_app.models import Burrow
 from test_project import views
 from test_project.models import Aerie, Eagle, Location
 from tests.base import BaseRequestTest, EagleGraph
@@ -178,22 +179,27 @@ class TestWarnUnusedSelectRelatedWithinPrefetch(BaseRequestTest):
 
 
 class TestWarnUnusedUnrestrictedSelectRelated(BaseRequestTest):
-    def test_bare_select_related_auto_discovers_forward_relation_unused(self, eagle_graph: EagleGraph):
-        aerie = AerieFactory(eagle=eagle_graph.eagle)
+    @pytest.fixture
+    def aerie(self, eagle_graph: EagleGraph) -> Aerie:
+        return AerieFactory(eagle=eagle_graph.eagle)
+
+    def test_bare_select_related_auto_discovers_forward_relation_unused(self, aerie: Aerie):
         with pytest.raises(UnusedRelatedAccess) as exc_info, warn_unused():
             Aerie.objects.select_related().get(pk=aerie.pk)
         assert 'select_related("eagle")' in str(exc_info.value)
 
-    def test_bare_select_related_auto_discovers_forward_relation_accessed(self, eagle_graph: EagleGraph):
-        aerie = AerieFactory(eagle=eagle_graph.eagle)
+    def test_bare_select_related_auto_discovers_forward_relation_accessed(self, aerie: Aerie):
         with warn_unused():
             fetched = Aerie.objects.select_related().get(pk=aerie.pk)
-            assert fetched.eagle == eagle_graph.eagle
+            assert fetched.eagle == aerie.eagle
 
 
 class TestWarnUnusedNestedThroughUninstrumentedOwner(BaseRequestTest):
-    def test_relation_owned_by_excluded_app_model_still_recurses(self, eagle_graph: EagleGraph):
-        BurrowFactory(eagle=eagle_graph.eagle)
+    @pytest.fixture
+    def burrow(self, eagle_graph: EagleGraph) -> Burrow:
+        return BurrowFactory(eagle=eagle_graph.eagle)
+
+    def test_relation_owned_by_excluded_app_model_still_recurses(self, burrow: Burrow, eagle_graph: EagleGraph):
         with pytest.raises(UnusedRelatedAccess) as exc_info, warn_unused():
             Eagle.objects.select_related("burrow__eagle").get(pk=eagle_graph.eagle.pk)
         assert 'select_related("burrow")' in str(exc_info.value)

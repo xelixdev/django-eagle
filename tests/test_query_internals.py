@@ -6,7 +6,7 @@ from django.db.models import QuerySet
 
 from eagle import unused
 from eagle.instrumentation import query
-from test_project.models import Aerie
+from test_project.models import Aerie, Eagle
 from tests.factories import EagleFactory
 
 
@@ -71,9 +71,12 @@ OPERATIONS = [
 
 @pytest.mark.django_db
 class TestTrackedPrefetchListConsumption:
+    @pytest.fixture
+    def eagle(self) -> Eagle:
+        return EagleFactory()
+
     @pytest.mark.parametrize(["label", "operation"], OPERATIONS, ids=[label for label, _ in OPERATIONS])
-    def test_operation_marks_prefetch_consumed(self, label: str, operation: object) -> None:
-        eagle = EagleFactory()
+    def test_operation_marks_prefetch_consumed(self, eagle: Eagle, label: str, operation: object) -> None:
         unused.begin_request()
         unused.init_state(eagle, location=None)
         unused.mark_prefetched([eagle], "previous_locations")
@@ -87,12 +90,16 @@ class TestTrackedPrefetchListConsumption:
 
 @pytest.mark.django_db
 class TestEagerPrefetchOneLevel:
-    def test_inactive_collector_returns_original_result_untouched(self, monkeypatch: object) -> None:
+    @pytest.fixture
+    def eagle(self) -> Eagle:
+        return EagleFactory()
+
+    def test_inactive_collector_returns_original_result_untouched(self, eagle: Eagle, monkeypatch: object) -> None:
         sentinel = object()
         monkeypatch.setattr(query, "_original_prefetch_one_level", lambda *a: sentinel)
         assert unused.is_active() is False
 
-        result = query._eager_prefetch_one_level([EagleFactory()], Mock(), Mock(), 0)
+        result = query._eager_prefetch_one_level([eagle], Mock(), Mock(), 0)
 
         assert result is sentinel
 
@@ -106,7 +113,7 @@ class TestEagerPrefetchOneLevel:
             unused.end_request()
         assert result is sentinel
 
-    def test_missing_prefetch_cache_name_returns_original_result(self, monkeypatch: object) -> None:
+    def test_missing_prefetch_cache_name_returns_original_result(self, eagle: Eagle, monkeypatch: object) -> None:
         sentinel = object()
         monkeypatch.setattr(query, "_original_prefetch_one_level", lambda *a: sentinel)
         lookup = Mock(get_current_to_attr=Mock(return_value=("attr", "attr")))
@@ -114,15 +121,14 @@ class TestEagerPrefetchOneLevel:
 
         unused.begin_request()
         try:
-            result = query._eager_prefetch_one_level([EagleFactory()], prefetcher, lookup, 0)
+            result = query._eager_prefetch_one_level([eagle], prefetcher, lookup, 0)
         finally:
             unused.end_request()
         assert result is sentinel
 
-    def test_uninitialized_instance_is_skipped(self, monkeypatch: object) -> None:
+    def test_uninitialized_instance_is_skipped(self, eagle: Eagle, monkeypatch: object) -> None:
         sentinel = object()
         monkeypatch.setattr(query, "_original_prefetch_one_level", lambda *a: sentinel)
-        eagle = EagleFactory()
         lookup = Mock(get_current_to_attr=Mock(return_value=("attr", "attr")))
         prefetcher = Mock(_prefetch_cache_name=Mock(return_value="cache"))
 
@@ -134,9 +140,8 @@ class TestEagerPrefetchOneLevel:
         assert result is sentinel
         assert not hasattr(eagle, "attr")
 
-    def test_already_tracked_list_is_not_rewrapped(self, monkeypatch: object) -> None:
+    def test_already_tracked_list_is_not_rewrapped(self, eagle: Eagle, monkeypatch: object) -> None:
         monkeypatch.setattr(query, "_original_prefetch_one_level", lambda *a: None)
-        eagle = EagleFactory()
         lookup = Mock(get_current_to_attr=Mock(return_value=("attr", "attr")))
         prefetcher = Mock(_prefetch_cache_name=Mock(return_value="cache"))
 
@@ -150,9 +155,8 @@ class TestEagerPrefetchOneLevel:
 
         assert eagle.attr is existing
 
-    def test_single_valued_to_attr_marks_consumed_immediately(self, monkeypatch: object) -> None:
+    def test_single_valued_to_attr_marks_consumed_immediately(self, eagle: Eagle, monkeypatch: object) -> None:
         monkeypatch.setattr(query, "_original_prefetch_one_level", lambda *a: None)
-        eagle = EagleFactory()
         eagle.attr = None
         lookup = Mock(get_current_to_attr=Mock(return_value=("attr", "attr")))
         prefetcher = Mock(_prefetch_cache_name=Mock(return_value="cache"))

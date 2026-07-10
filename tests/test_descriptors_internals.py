@@ -32,8 +32,11 @@ class TestLegacyGetPrefetchQueryset:
 
 @pytest.mark.django_db
 class TestTrackingPrefetchCache:
-    def test_getitem_marks_consumed_when_instance_is_tracked(self) -> None:
-        eagle = EagleFactory()
+    @pytest.fixture
+    def eagle(self) -> Eagle:
+        return EagleFactory()
+
+    def test_getitem_marks_consumed_when_instance_is_tracked(self, eagle: Eagle) -> None:
         unused.begin_request()
         unused.init_state(eagle, location=None)
         unused.mark_prefetched([eagle], "previous_locations")
@@ -50,28 +53,29 @@ class TestTrackingPrefetchCache:
 
 @pytest.mark.django_db
 class TestPrefetchCacheDescriptor:
+    @pytest.fixture
+    def eagle(self) -> Eagle:
+        return EagleFactory()
+
     def test_class_level_access_returns_descriptor_itself(self) -> None:
         descriptor = Eagle.__dict__["_prefetched_objects_cache"]
         assert descriptor.__get__(None, Eagle) is descriptor
 
-    def test_set_does_not_rewrap_existing_tracking_cache(self) -> None:
+    def test_set_does_not_rewrap_existing_tracking_cache(self, eagle: Eagle) -> None:
         descriptor = Eagle.__dict__["_prefetched_objects_cache"]
-        eagle = EagleFactory()
         existing = descriptors.TrackingPrefetchCache({}, _eagle_instance=eagle)
 
         descriptor.__set__(eagle, existing)
 
         assert eagle.__dict__[descriptor._eagle_storage] is existing
 
-    def test_delete_missing_cache_raises_attribute_error(self) -> None:
+    def test_delete_missing_cache_raises_attribute_error(self, eagle: Eagle) -> None:
         descriptor = Eagle.__dict__["_prefetched_objects_cache"]
-        eagle = EagleFactory()
         with pytest.raises(AttributeError):
             descriptor.__delete__(eagle)
 
-    def test_delete_existing_cache_removes_it(self) -> None:
+    def test_delete_existing_cache_removes_it(self, eagle: Eagle) -> None:
         descriptor = Eagle.__dict__["_prefetched_objects_cache"]
-        eagle = EagleFactory()
         descriptor.__set__(eagle, {})
 
         descriptor.__delete__(eagle)
@@ -91,19 +95,19 @@ class TestCreateEagerRelatedManagerCacheNameFallback:
 
 @pytest.mark.django_db
 class TestForwardOneToOnePrefetch:
-    def test_forward_o2o_prefetch_unused_warns(self) -> None:
-        eagle = EagleFactory()
-        aerie = AerieFactory(eagle=eagle)
+    @pytest.fixture
+    def aerie(self) -> Aerie:
+        return AerieFactory(eagle=EagleFactory())
+
+    def test_forward_o2o_prefetch_unused_warns(self, aerie: Aerie) -> None:
         with pytest.raises(UnusedRelatedAccess) as exc_info, warn_unused():
             Aerie.objects.prefetch_related("eagle").get(pk=aerie.pk)
         assert 'prefetch_related("eagle")' in str(exc_info.value)
 
-    def test_forward_o2o_prefetch_accessed_no_warning(self) -> None:
-        eagle = EagleFactory()
-        aerie = AerieFactory(eagle=eagle)
+    def test_forward_o2o_prefetch_accessed_no_warning(self, aerie: Aerie) -> None:
         with warn_unused():
             fetched = Aerie.objects.prefetch_related("eagle").get(pk=aerie.pk)
-            assert fetched.eagle == eagle
+            assert fetched.eagle == aerie.eagle
 
 
 class TestMakeContenttypesEagerIdempotent:
@@ -133,18 +137,17 @@ class TestLegacyGenericForeignKeyGetPrefetchQueryset:
 
 @pytest.mark.django_db
 class TestGenericForeignKeyTracking:
-    def _make_sighting(self) -> Sighting:
+    @pytest.fixture
+    def sighting(self) -> Sighting:
         eagle = EagleFactory()
         return Sighting.objects.create(content_type=ContentType.objects.get_for_model(Eagle), object_id=eagle.pk)
 
-    def test_prefetched_generic_foreign_key_unused_warns(self) -> None:
-        sighting = self._make_sighting()
+    def test_prefetched_generic_foreign_key_unused_warns(self, sighting: Sighting) -> None:
         with pytest.raises(UnusedRelatedAccess) as exc_info, warn_unused():
             Sighting.objects.prefetch_related("content_object").get(pk=sighting.pk)
         assert 'prefetch_related("content_object")' in str(exc_info.value)
 
-    def test_prefetched_generic_foreign_key_accessed_no_warning(self) -> None:
-        sighting = self._make_sighting()
+    def test_prefetched_generic_foreign_key_accessed_no_warning(self, sighting: Sighting) -> None:
         with warn_unused():
             fetched = Sighting.objects.prefetch_related("content_object").get(pk=sighting.pk)
             assert fetched.content_object is not None
