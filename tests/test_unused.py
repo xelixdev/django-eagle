@@ -2,11 +2,11 @@ import pytest
 from django.urls import reverse
 from rest_framework.test import APIClient
 
-from eagle import UnusedRelatedAccess, unused
+from eagle import UnusedRelatedAccess, unused, warn_unused
 from test_project import views
-from test_project.models import Eagle, Location
+from test_project.models import Aerie, Eagle, Location
 from tests.base import BaseRequestTest, EagleGraph
-from tests.factories import BurrowFactory, ClimateFactory, EagleFactory, LocationFactory
+from tests.factories import AerieFactory, BurrowFactory, ClimateFactory, EagleFactory, LocationFactory
 
 
 class TestWarnUnusedQuerySet(BaseRequestTest):
@@ -175,3 +175,25 @@ class TestWarnUnusedSelectRelatedWithinPrefetch(BaseRequestTest):
         url = reverse("eagle-detail", kwargs={"pk": eagle_graph.eagle.pk})
         response = api_client.get(url, {"prefetch_select": "eaglet:eagle", "access": "eaglet__eagle"})
         assert response.status_code == 200
+
+
+class TestWarnUnusedUnrestrictedSelectRelated(BaseRequestTest):
+    def test_bare_select_related_auto_discovers_forward_relation_unused(self, eagle_graph: EagleGraph):
+        aerie = AerieFactory(eagle=eagle_graph.eagle)
+        with pytest.raises(UnusedRelatedAccess) as exc_info, warn_unused():
+            Aerie.objects.select_related().get(pk=aerie.pk)
+        assert 'select_related("eagle")' in str(exc_info.value)
+
+    def test_bare_select_related_auto_discovers_forward_relation_accessed(self, eagle_graph: EagleGraph):
+        aerie = AerieFactory(eagle=eagle_graph.eagle)
+        with warn_unused():
+            fetched = Aerie.objects.select_related().get(pk=aerie.pk)
+            assert fetched.eagle == eagle_graph.eagle
+
+
+class TestWarnUnusedNestedThroughUninstrumentedOwner(BaseRequestTest):
+    def test_relation_owned_by_excluded_app_model_still_recurses(self, eagle_graph: EagleGraph):
+        BurrowFactory(eagle=eagle_graph.eagle)
+        with pytest.raises(UnusedRelatedAccess) as exc_info, warn_unused():
+            Eagle.objects.select_related("burrow__eagle").get(pk=eagle_graph.eagle.pk)
+        assert 'select_related("burrow")' in str(exc_info.value)

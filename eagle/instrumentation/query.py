@@ -109,7 +109,7 @@ def propagate_prefetch_location(instances: list[models.Model], child_queryset: A
         child_queryset: The prefetch queryset that will execute against the related model.
         cache_name: ORM cache key identifying which per-field location to look up; None skips propagation.
     """
-    if cache_name is None or not instances or child_queryset is None:
+    if cache_name is None or not instances or not isinstance(child_queryset, QuerySet):
         return
     if getattr(child_queryset, _EAGLE_LOCATION_ATTR, None) is not None:
         return

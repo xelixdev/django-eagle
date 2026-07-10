@@ -27,6 +27,13 @@ class TestScopeIgnore(BaseRequestTest):
             api_client.get(url, {"select_related": "location"})
         assert "location" in str(exc_info.value)
 
+    @override_settings(EAGLE_WARN_UNUSED_IGNORE=[{"model": "Eagle", "field": "previous_locations"}])
+    def test_ignore_matching_model_wrong_field_still_warns(self, api_client: APIClient, eagle_graph: EagleGraph):
+        url = reverse("eagle-detail", kwargs={"pk": eagle_graph.eagle.pk})
+        with pytest.raises(UnusedRelatedAccess) as exc_info:
+            api_client.get(url, {"select_related": "location"})
+        assert "location" in str(exc_info.value)
+
     @override_settings(EAGLE_WARN_UNUSED_IGNORE=[{"location": "*/test_project/*"}])
     def test_ignore_by_location_glob(self, api_client: APIClient, eagle_graph: EagleGraph):
         url = reverse("eagle-detail", kwargs={"pk": eagle_graph.eagle.pk})

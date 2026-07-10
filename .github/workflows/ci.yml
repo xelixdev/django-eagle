@@ -34,7 +34,17 @@ jobs:
         uses: pre-commit/action@v3.0.1
 
       - name: Test
-        run: uv run pytest -q --cov --cov-report=xml --cov-report=term-missing
+        # Invoked via `coverage run` (not `pytest --cov`) so tracing starts at interpreter
+        # startup: pytest's own config parsing eagerly imports the `filterwarnings` target
+        # ("error::eagle.exceptions.UnusedRelatedAccess") before pytest-cov would attach,
+        # which under `pytest --cov` silently drops that early import from measurement.
+        run: uv run coverage run -m pytest -q
+
+      - name: Coverage report
+        run: uv run coverage report -m
+
+      - name: Coverage XML
+        run: uv run coverage xml
 
       - name: Generate coverage badge
         run: uv run genbadge coverage -i coverage.xml -o assets/coverage.svg
@@ -47,3 +57,6 @@ jobs:
           git add assets/coverage.svg
           git diff --staged --quiet || git commit -m "chore: update coverage badge"
           git push
+
+      - name: Enforce minimum coverage
+        run: uv run coverage report --fail-under=95
