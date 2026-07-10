@@ -5,7 +5,7 @@
 # django-eagle
 
 [![CI](https://github.com/xelixdev/django-eagle/actions/workflows/ci.yml/badge.svg)](https://github.com/xelixdev/django-eagle/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/xelixdev/django-eagle/branch/main/graph/badge.svg)](https://codecov.io/gh/xelixdev/django-eagle)
+[![coverage](https://raw.githubusercontent.com/xelixdev/django-eagle/main/assets/coverage.svg)](https://github.com/xelixdev/django-eagle/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
 [![Django](https://img.shields.io/badge/django-5.2%2B-092e20)](https://www.djangoproject.com/)
 

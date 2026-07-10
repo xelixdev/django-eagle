@@ -26,7 +26,7 @@ Add `--cov` for a coverage report (config under `[tool.coverage.*]` in `pyprojec
 uv run --active pytest -q --cov
 ```
 
-CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs lint, type-check, and the test suite with coverage on every push and pull request, uploading coverage to Codecov.
+CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs lint, type-check, and the test suite with coverage on every push and pull request. On pushes to `main`, the coverage badge (`assets/coverage.svg`) is regenerated with [genbadge](https://github.com/smarie/python-genbadge) and committed back to the repo.
 
 All test assets live under `tests/`: the pytest suite sits at the root, the minimal Django app under test is in `tests/test_project/`, and `tests/excluded_app/` covers excluded-app behavior. Tests run real requests/querysets and assert on captured warnings rather than internal state. Factories are in `tests/factories.py`; shared fixtures and base classes in `tests/base.py`.
 
