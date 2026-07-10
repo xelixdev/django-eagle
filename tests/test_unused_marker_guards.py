@@ -2,15 +2,10 @@ import pytest
 
 from eagle import UnusedRelatedAccess, unused
 from test_project.models import Eagle
-from tests.factories import EagleFactory
+from tests.base import EagleFixtureMixin
 
 
-@pytest.mark.django_db
-class TestMarkerGuardsOutsideActiveRequest:
-    @pytest.fixture
-    def eagle(self) -> Eagle:
-        return EagleFactory()
-
+class TestMarkerGuardsOutsideActiveRequest(EagleFixtureMixin):
     def test_marking_functions_are_inert_outside_a_request(self, eagle: Eagle) -> None:
         assert unused.is_active() is False
         unused.mark_select_related(eagle, "_location_cache")

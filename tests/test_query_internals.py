@@ -7,7 +7,7 @@ from django.db.models import QuerySet
 from eagle import unused
 from eagle.instrumentation import query
 from test_project.models import Aerie, Eagle
-from tests.factories import EagleFactory
+from tests.base import EagleFixtureMixin
 
 
 class TestGetUnrestrictedSelectRelatedGetters:
@@ -69,12 +69,7 @@ OPERATIONS = [
 ]
 
 
-@pytest.mark.django_db
-class TestTrackedPrefetchListConsumption:
-    @pytest.fixture
-    def eagle(self) -> Eagle:
-        return EagleFactory()
-
+class TestTrackedPrefetchListConsumption(EagleFixtureMixin):
     @pytest.mark.parametrize(["label", "operation"], OPERATIONS, ids=[label for label, _ in OPERATIONS])
     def test_operation_marks_prefetch_consumed(self, eagle: Eagle, label: str, operation: object) -> None:
         unused.begin_request()
@@ -88,12 +83,7 @@ class TestTrackedPrefetchListConsumption:
         unused.end_request()
 
 
-@pytest.mark.django_db
-class TestEagerPrefetchOneLevel:
-    @pytest.fixture
-    def eagle(self) -> Eagle:
-        return EagleFactory()
-
+class TestEagerPrefetchOneLevel(EagleFixtureMixin):
     def test_inactive_collector_returns_original_result_untouched(self, eagle: Eagle, monkeypatch: object) -> None:
         sentinel = object()
         monkeypatch.setattr(query, "_original_prefetch_one_level", lambda *a: sentinel)

@@ -6,8 +6,8 @@ from eagle import UnusedRelatedAccess, unused, warn_unused
 from excluded_app.models import Burrow
 from test_project import views
 from test_project.models import Aerie, Eagle, Location
-from tests.base import BaseRequestTest, EagleGraph
-from tests.factories import AerieFactory, BurrowFactory, ClimateFactory, EagleFactory, LocationFactory
+from tests.base import AerieFixtureMixin, BaseRequestTest, BurrowFixtureMixin, EagleGraph
+from tests.factories import BurrowFactory, ClimateFactory, EagleFactory, LocationFactory
 
 
 class TestWarnUnusedQuerySet(BaseRequestTest):
@@ -178,11 +178,7 @@ class TestWarnUnusedSelectRelatedWithinPrefetch(BaseRequestTest):
         assert response.status_code == 200
 
 
-class TestWarnUnusedUnrestrictedSelectRelated(BaseRequestTest):
-    @pytest.fixture
-    def aerie(self, eagle_graph: EagleGraph) -> Aerie:
-        return AerieFactory(eagle=eagle_graph.eagle)
-
+class TestWarnUnusedUnrestrictedSelectRelated(AerieFixtureMixin):
     def test_bare_select_related_auto_discovers_forward_relation_unused(self, aerie: Aerie):
         with pytest.raises(UnusedRelatedAccess) as exc_info, warn_unused():
             Aerie.objects.select_related().get(pk=aerie.pk)
@@ -194,12 +190,8 @@ class TestWarnUnusedUnrestrictedSelectRelated(BaseRequestTest):
             assert fetched.eagle == aerie.eagle
 
 
-class TestWarnUnusedNestedThroughUninstrumentedOwner(BaseRequestTest):
-    @pytest.fixture
-    def burrow(self, eagle_graph: EagleGraph) -> Burrow:
-        return BurrowFactory(eagle=eagle_graph.eagle)
-
-    def test_relation_owned_by_excluded_app_model_still_recurses(self, burrow: Burrow, eagle_graph: EagleGraph):
+class TestWarnUnusedNestedThroughUninstrumentedOwner(BurrowFixtureMixin):
+    def test_relation_owned_by_excluded_app_model_still_recurses(self, burrow: Burrow, eagle: Eagle):
         with pytest.raises(UnusedRelatedAccess) as exc_info, warn_unused():
-            Eagle.objects.select_related("burrow__eagle").get(pk=eagle_graph.eagle.pk)
+            Eagle.objects.select_related("burrow__eagle").get(pk=eagle.pk)
         assert 'select_related("burrow")' in str(exc_info.value)

@@ -2,12 +2,11 @@ from types import SimpleNamespace
 
 import pytest
 from django.contrib.contenttypes.fields import GenericForeignKey
-from django.contrib.contenttypes.models import ContentType
 
 from eagle import UnusedRelatedAccess, unused, warn_unused
 from eagle.instrumentation import descriptors
 from test_project.models import Aerie, Eagle, Sighting
-from tests.factories import AerieFactory, EagleFactory
+from tests.base import AerieFixtureMixin, EagleFixtureMixin, SightingFixtureMixin
 
 
 class TestEagerPrefetchMixinBase:
@@ -30,12 +29,7 @@ class TestLegacyGetPrefetchQueryset:
         assert result == ("child-queryset", None)
 
 
-@pytest.mark.django_db
-class TestTrackingPrefetchCache:
-    @pytest.fixture
-    def eagle(self) -> Eagle:
-        return EagleFactory()
-
+class TestTrackingPrefetchCache(EagleFixtureMixin):
     def test_getitem_marks_consumed_when_instance_is_tracked(self, eagle: Eagle) -> None:
         unused.begin_request()
         unused.init_state(eagle, location=None)
@@ -51,12 +45,7 @@ class TestTrackingPrefetchCache:
         assert cache["key"] == "value"
 
 
-@pytest.mark.django_db
-class TestPrefetchCacheDescriptor:
-    @pytest.fixture
-    def eagle(self) -> Eagle:
-        return EagleFactory()
-
+class TestPrefetchCacheDescriptor(EagleFixtureMixin):
     def test_class_level_access_returns_descriptor_itself(self) -> None:
         descriptor = Eagle.__dict__["_prefetched_objects_cache"]
         assert descriptor.__get__(None, Eagle) is descriptor
@@ -93,12 +82,7 @@ class TestCreateEagerRelatedManagerCacheNameFallback:
         assert manager_cls()._prefetch_cache_name() == "stub_query_name"
 
 
-@pytest.mark.django_db
-class TestForwardOneToOnePrefetch:
-    @pytest.fixture
-    def aerie(self) -> Aerie:
-        return AerieFactory(eagle=EagleFactory())
-
+class TestForwardOneToOnePrefetch(AerieFixtureMixin):
     def test_forward_o2o_prefetch_unused_warns(self, aerie: Aerie) -> None:
         with pytest.raises(UnusedRelatedAccess) as exc_info, warn_unused():
             Aerie.objects.prefetch_related("eagle").get(pk=aerie.pk)
@@ -135,13 +119,7 @@ class TestLegacyGenericForeignKeyGetPrefetchQueryset:
         assert result == ("child-queryset", None)
 
 
-@pytest.mark.django_db
-class TestGenericForeignKeyTracking:
-    @pytest.fixture
-    def sighting(self) -> Sighting:
-        eagle = EagleFactory()
-        return Sighting.objects.create(content_type=ContentType.objects.get_for_model(Eagle), object_id=eagle.pk)
-
+class TestGenericForeignKeyTracking(SightingFixtureMixin):
     def test_prefetched_generic_foreign_key_unused_warns(self, sighting: Sighting) -> None:
         with pytest.raises(UnusedRelatedAccess) as exc_info, warn_unused():
             Sighting.objects.prefetch_related("content_object").get(pk=sighting.pk)

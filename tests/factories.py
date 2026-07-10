@@ -4,7 +4,7 @@ import factory
 
 from collision_app.models import Eagle as CollisionEagle
 from excluded_app.models import Burrow
-from test_project.models import Aerie, Climate, Eagle, Eaglet, Location
+from test_project.models import Aerie, Climate, Eagle, Eaglet, Location, Sighting
 
 
 class ClimateFactory(factory.django.DjangoModelFactory):
@@ -58,6 +58,13 @@ class BurrowFactory(factory.django.DjangoModelFactory):
 
     eagle = factory.SubFactory(EagleFactory)
     depth = 3
+
+
+class SightingFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = Sighting
+
+    content_object = factory.SubFactory(EagleFactory)
 
 
 class CollisionEagleFactory(factory.django.DjangoModelFactory):
