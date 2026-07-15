@@ -11,11 +11,30 @@ concurrency:
 
 jobs:
   test:
+    name: test (py ${{ matrix.py }}, django ${{ matrix.django }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        py:
+          - "3.14"
+          - "3.13"
+          - "3.12"
+          - "3.11"
+          - "3.10"
+        django:
+          - "6.0"
+          - "5.2"
+        exclude:
+          # Django 6.0 requires Python >= 3.12.
+          - py: "3.10"
+            django: "6.0"
+          - py: "3.11"
+            django: "6.0"
     permissions:
       contents: write
     env:
-      UV_PYTHON: "3.10"
+      UV_PYTHON: ${{ matrix.py }}
     steps:
       - uses: actions/checkout@v4
 
@@ -25,12 +44,16 @@ jobs:
           enable-cache: true
 
       - name: Set up Python
-        run: uv python install 3.10
+        run: uv python install ${{ matrix.py }}
 
       - name: Sync dependencies
         run: uv sync
 
+      - name: Install Django ${{ matrix.django }}
+        run: uv pip install "django==${{ matrix.django }}.*"
+
       - name: pre-commit
+        if: matrix.py == '3.13' && matrix.django == '5.2'
         uses: pre-commit/action@v3.0.1
 
       - name: Test
@@ -47,12 +70,13 @@ jobs:
         run: uv run coverage xml
 
       - name: Generate coverage badge
+        if: matrix.py == '3.13' && matrix.django == '5.2'
         run: |
           uv run genbadge coverage -i coverage.xml -o assets/coverage.svg
           [ -z "$(tail -c1 assets/coverage.svg)" ] || printf '\n' >> assets/coverage.svg
 
       - name: Commit coverage badge
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.py == '3.13' && matrix.django == '5.2'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
